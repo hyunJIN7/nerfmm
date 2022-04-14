@@ -9,6 +9,7 @@ from dataloader.with_colmap import resize_imgs
 
 
 def load_imgs(image_dir, num_img_to_load, start, end, skip, load_sorted, load_img):
+    print("## ", image_dir)
     img_names = np.array(sorted(os.listdir(image_dir)))  # all image names
 
     # down sample frames in temporal domain

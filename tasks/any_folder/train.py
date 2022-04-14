@@ -31,7 +31,7 @@ def parse_args():
 
     parser.add_argument('--gpu_id', default=0, type=int)
     parser.add_argument('--multi_gpu',  default=False, type=eval, choices=[True, False])
-    parser.add_argument('--base_dir', type=str, default='./data_dir/nerfmm_release_data')
+    parser.add_argument('--base_dir', type=str, default='./data_dir/any_folder_demo')
     parser.add_argument('--scene_name', type=str, default='any_folder_demo/desk')
 
     parser.add_argument('--nerf_lr', default=0.001, type=float)
