@@ -99,6 +99,12 @@ We show how to:
    --scene_name='any_folder_demo/desk'
     ```
    This command trains an `any_folder` target using a provided demo scene `desk`. 
+```shell : 실제 
+python tasks/any_folder/train.py --base_dir=./data/any_folder_demo --scene_name=desk 
+```
+- code에서 `image_dir` = `base_dir` + `scene_name`  
+- `scene_name` : `logs/any_folder` 하위에 생기는 폴더명  
+- single quote 빼고 경로 적기
 
 (Optional) set a symlink to the downloaded data:
 ```shell
