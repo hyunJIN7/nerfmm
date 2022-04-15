@@ -104,7 +104,7 @@ We show how to:
     ```shell 
     python tasks/any_folder/train.py --base_dir=./data/any_folder_demo --scene_name=desk 
     ```
-    - code에서 `image_dir` = `base_dir` + `scene_name`  
+    - code에서 `image_dir` = `base_dir` + `scene_name` + `rgb` (`rgb`는 코드에서 내가 직접 넣음, 파일 구성할때 data/any_folder_demo/`desk`/rgb 에 이미지 넣으면 됨.)
     - `scene_name` : `logs/any_folder` 하위에 생기는 폴더명  
     - single quote 빼고 경로 적기
 
