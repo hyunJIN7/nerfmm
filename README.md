@@ -75,6 +75,10 @@ We show how to:
    --base_dir='path/to/nerfmm_release/data' \
    --scene_name='LLFF/fern'
     ```
+    ```shell
+    python tasks/nerfmm/train.py --base_dir=./data/LLFF --scene_name=trex 
+    ```
+    
 2. train a `nerfmm` from COLMAP initialisation:
     ```shell
     python tasks/nerfmm/train.py \
