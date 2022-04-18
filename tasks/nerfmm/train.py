@@ -307,7 +307,6 @@ def main(args):
     lines = [gen_detail_name(args)]
     with open(option_txt, 'w') as f:
         f.writelines(lines)
-
     experiment_dir.mkdir(parents=True, exist_ok=True)
     shutil.copy('./models/nerf_models.py', experiment_dir)
     shutil.copy('./models/intrinsics.py', experiment_dir)
