@@ -27,6 +27,8 @@ from models.poses import LearnPose
 
 def parse_args():
     parser = argparse.ArgumentParser()
+    parser.add_argument('--exp_name', type=str, default='fern')
+
     parser.add_argument('--epoch', default=10000, type=int)
     parser.add_argument('--eval_img_interval', default=100, type=int, help='eval images every this epoch number')
     parser.add_argument('--eval_cam_interval', default=5, type=int, help='eval camera params every this epoch number')
@@ -300,7 +302,12 @@ def main(args):
     '''Create Folders'''
     exp_root_dir = Path(os.path.join('./logs/nerfmm', args.scene_name))
     exp_root_dir.mkdir(parents=True, exist_ok=True)
-    experiment_dir = Path(os.path.join(exp_root_dir, gen_detail_name(args)))
+    experiment_dir = Path(os.path.join(exp_root_dir, args.exp_name))
+    option_txt = 'option.txt'
+    lines = [gen_detail_name(args)]
+    with open(option_txt, 'w') as f:
+        f.writelines(lines)
+
     experiment_dir.mkdir(parents=True, exist_ok=True)
     shutil.copy('./models/nerf_models.py', experiment_dir)
     shutil.copy('./models/intrinsics.py', experiment_dir)
