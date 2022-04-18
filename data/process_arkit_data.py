@@ -265,10 +265,10 @@ def process_arkit_data(args,ori_size=(1920, 1440), size=(640, 480)):
 
 
     #for iphone train data
-    iphone_image_dir = os.path.join(basedir, 'iphone_train_val_images')
+    iphone_image_dir = os.path.join(basedir, 'images_train_val')
     if not os.path.exists(iphone_image_dir):
         os.mkdir(iphone_image_dir)
-    iphone_pose_fanme = os.path.join(basedir , 'transforms_iphone.txt')
+    iphone_pose_fanme = os.path.join(basedir , 'transforms_train_val.txt')
     iphone_poses = []
 
     # select pose,image 파일 저장

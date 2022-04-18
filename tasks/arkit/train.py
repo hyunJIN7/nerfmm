@@ -333,7 +333,7 @@ def main(args):
     writer = SummaryWriter(log_dir=str(experiment_dir))
 
     '''Data Loading'''
-    scene_train = DataLoaderWithCOLMAP(base_dir=args.base_dir,
+    scene_train = DataLoaderARKit(base_dir=args.base_dir,
                                        scene_name=args.scene_name,
                                        data_type='train',
                                        res_ratio=args.resize_ratio,

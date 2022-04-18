@@ -26,7 +26,7 @@ def resize_imgs(imgs, new_h, new_w):
 
 
 def load_imgs(image_dir, img_ids, new_h, new_w):
-    print("## arkit image load : ", image_dir)
+    print("## arkit image load : ", image_dir)  #TODO: image folder name check
     img_names = np.array(sorted(os.listdir(image_dir)))  # all image names
     img_names = img_names[img_ids]  # image name for this split
 
@@ -81,16 +81,37 @@ def read_meta(in_dir, use_ndc):
     Read the poses_bounds.npy file produced by LLFF imgs2poses.py.
     This function is modified from https://github.com/kwea123/nerf_pl.
     """
-    poses_bounds = np.load(os.path.join(in_dir, 'poses_bounds.npy'))  # (N_images, 17)
 
-    c2ws = poses_bounds[:, :15].reshape(-1, 3, 5)  # (N_images, 3, 5)
-    bounds = poses_bounds[:, -2:]  # (N_images, 2)
-    H, W, focal = c2ws[0, :, -1]
+    # H,W,Focal
+    intrin_file = os.path.join(in_dir, 'Frames.txt')
+    assert os.path.isfile(intrin_file), "camera info:{} not found".format(intrin_file)
+    with open(intrin_file, "r") as f:  # frame.txt
+        cam_intrinsic_lines = f.readlines()
+    cam_intrinsics = []
+    line_data_list = cam_intrinsic_lines[0].split(',')  # intrinsic 첫번째 값으로 고정
+    cam_intrinsics.append([float(i) for i in line_data_list])
+    intr = torch.tensor([
+        [cam_intrinsics[0][2], 0, cam_intrinsics[0][4]],
+        [0, cam_intrinsics[0][3], cam_intrinsics[0][5]],
+        [0, 0, 1]
+    ]).float()
+    # origin video's origin_size(1920,1440) -> extract frame (640,480)
+    ori_size = (1920, 1440)
+    size = (640, 480)
+    H, W = [640,480]
+    intr[0, :] /= (ori_size[0] / size[0])
+    intr[1, :] /= (ori_size[1] / size[1])  # resize 전 크기가 orgin_size 이기 때문에
+    focal = intr[0,0]
 
-    # correct c2ws: original c2ws has rotation in form "down right back", change to "right up back".
-    # See https://github.com/bmild/nerf/issues/34
-    c2ws = np.concatenate([c2ws[..., 1:2], -c2ws[..., :1], c2ws[..., 2:4]], -1)
+    #pose
+    pose_fname =  os.path.join(in_dir, 'transforms_train_val.txt.txt')
 
+
+
+
+
+
+    #TODO : ????
     # (N_images, 3, 4), (4, 4)
     c2ws, pose_avg = center_poses(c2ws)  # pose_avg @ c2ws -> centred c2ws
 
@@ -102,7 +123,7 @@ def read_meta(in_dir, use_ndc):
         # the nearest depth is at 1/0.75=1.33
         bounds /= scale_factor
         c2ws[..., 3] /= scale_factor
-    
+
     c2ws = convert3x4_4x4(c2ws)  # (N, 4, 4)
 
     results = {
@@ -116,7 +137,7 @@ def read_meta(in_dir, use_ndc):
     return results
 
 
-class DataLoaderWithCOLMAP:
+class DataLoaderARKit:
     """
     Most useful fields:
         self.c2ws:          (N_imgs, 4, 4)      torch.float32
