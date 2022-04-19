@@ -10,13 +10,13 @@ import imageio
 
 sys.path.append(os.path.join(sys.path[0], '../..'))
 
-from dataloader.arkit import DataLoaderARKit
+from dataloader.any_folder import DataLoaderAnyFolder
 from utils.training_utils import set_randomness, load_ckpt_to_net
 from utils.pose_utils import create_spiral_poses
 from utils.comp_ray_dir import comp_ray_dir_cam_fxfy
 from utils.lie_group_helper import convert3x4_4x4
 from models.nerf_models import OfficialNerf
-from tasks.nerfmm.train import model_render_image
+from tasks.any_folder.train import model_render_image
 from models.intrinsics import LearnFocal
 from models.poses import LearnPose
 
@@ -25,19 +25,15 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--gpu_id', default=0, type=int)
     parser.add_argument('--multi_gpu',  default=False, action='store_true')
-    parser.add_argument('--base_dir', type=str, default='./data_dir/nerfmm_release_data',
-                        help='folder contains various scenes')
-    parser.add_argument('--scene_name', type=str, default='LLFF/fern')
-    parser.add_argument('--use_ndc', type=bool, default=True)
+    parser.add_argument('--base_dir', type=str, default='./data_dir/nerfmm_release_data')
+    parser.add_argument('--scene_name', type=str, default='any_folder_demo/desk')
 
     parser.add_argument('--learn_focal', default=False, type=bool)
-    parser.add_argument('--fx_only', default=False, type=eval, choices=[True, False])
     parser.add_argument('--focal_order', default=2, type=int)
+    parser.add_argument('--fx_only', default=False, type=eval, choices=[True, False])
 
     parser.add_argument('--learn_R', default=False, type=bool)
     parser.add_argument('--learn_t', default=False, type=bool)
-
-    parser.add_argument('--init_focal_colmap', default=False, type=bool)
 
     parser.add_argument('--resize_ratio', type=int, default=4, help='lower the image resolution with this ratio')
     parser.add_argument('--num_rows_eval_img', type=int, default=10, help='split a high res image to rows in eval')
@@ -54,14 +50,17 @@ def parse_args():
     parser.add_argument('--rand_seed', type=int, default=17)
     parser.add_argument('--true_rand', type=bool, default=False)
 
+    parser.add_argument('--train_img_num', type=int, default=-1, help='num of images to train')
+    parser.add_argument('--train_load_sorted', type=bool, default=False)
+    parser.add_argument('--train_start', type=int, default=0, help='inclusive')
+    parser.add_argument('--train_end', type=int, default=-1, help='exclusive, -1 for all')
+    parser.add_argument('--train_skip', type=int, default=1, help='skip every this number of imgs')
+
     parser.add_argument('--spiral_mag_percent', type=float, default=50, help='for np.percentile')
     parser.add_argument('--spiral_axis_scale', type=float, default=[1.0, 1.0, 1.0], nargs=3,
                         help='applied on top of percentile, useful in zoom in motion')
     parser.add_argument('--N_img_per_circle', type=int, default=60)
     parser.add_argument('--N_circle_traj', type=int, default=2)
-
-    parser.add_argument('--train_img_num', type=int, default=-1, help='num of images to train, -1 for all')
-    parser.add_argument('--train_skip', type=int, default=1, help='skip every this number of imgs')
 
     parser.add_argument('--ckpt_dir', type=str, default='')
     return parser.parse_args()
@@ -104,7 +103,7 @@ def test_one_epoch(H, W, focal_net, c2ws, near, far, model, my_devices, args):
         rendered_depth_list.append(rendered_depth)
 
     rendered_img_list = torch.stack(rendered_img_list)  # (N, H, W, 3)
-    rendered_depth_list = torch.stack(rendered_depth_list)  # (N, H, W)
+    rendered_depth_list = torch.stack(rendered_depth_list)  # (N, H, W, 3)
 
     result = {
         'imgs': rendered_img_list,
@@ -126,22 +125,19 @@ def main(args):
     depth_out_dir.mkdir(parents=True, exist_ok=True)
     video_out_dir.mkdir(parents=True, exist_ok=True)
 
-    '''Scene Meta'''
-    scene_train = DataLoaderARKit(base_dir=args.base_dir,
-                                       scene_name=args.scene_name,
-                                       data_type='train',
-                                       res_ratio=args.resize_ratio,
-                                       num_img_to_load=args.train_img_num,
-                                       skip=args.train_skip,
-                                       use_ndc=args.use_ndc,
-                                       load_img=False)
+    '''Load scene meta'''
+    scene_train = DataLoaderAnyFolder(base_dir=args.base_dir,
+                                      scene_name=args.scene_name,
+                                      res_ratio=args.resize_ratio,
+                                      num_img_to_load=args.train_img_num,
+                                      start=args.train_start,
+                                      end=args.train_end,
+                                      skip=args.train_skip,
+                                      load_sorted=args.train_load_sorted,
+                                      load_img=False)
 
-    H, W = scene_train.H, scene_train.W
-    arkit_focal = scene_train.focal
-    near, far = scene_train.near, scene_train.far
-
-    print('Intrinsic: H: {0:4d}, W: {1:4d}, COLMAP focal {2:.2f}.'.format(H, W, arkit_focal))
-    print('near: {0:.1f}, far: {1:.1f}.'.format(near, far))
+    print('H: {0:4d}, W: {1:4d}.'.format(scene_train.H, scene_train.W))
+    print('near: {0:.1f}, far: {1:.1f}.'.format(scene_train.near, scene_train.far))
 
     '''Model Loading'''
     pos_enc_in_dims = (2 * args.pos_enc_levels + int(args.pos_enc_inc_in)) * 3  # (2L + 0 or 1) * 3
@@ -157,19 +153,12 @@ def main(args):
         model = model.to(device=my_devices)
     model = load_ckpt_to_net(os.path.join(args.ckpt_dir, 'latest_nerf.pth'), model, map_location=my_devices)
 
-    if args.init_focal_colmap:
-        focal_net = LearnFocal(H, W, args.learn_focal, args.fx_only, order=args.focal_order, init_focal=arkit_focal)
-    else:
-        focal_net = LearnFocal(H, W, args.learn_focal, args.fx_only, order=args.focal_order)
+    focal_net = LearnFocal(scene_train.H, scene_train.W, args.learn_focal, args.fx_only, order=args.focal_order)
     if args.multi_gpu:
         focal_net = torch.nn.DataParallel(focal_net).to(device=my_devices)
     else:
         focal_net = focal_net.to(device=my_devices)
-    # do not load learned focal if we use colmap focal
-    if not args.init_focal_colmap:
-        focal_net = load_ckpt_to_net(os.path.join(args.ckpt_dir, 'latest_focal.pth'), focal_net, map_location=my_devices)
-    fxfy = focal_net(0)
-    print('ARKit focal: {0:.2f}, learned fx: {1:.2f}, fy: {2:.2f}'.format(arkit_focal, fxfy[0].item(), fxfy[1].item()))
+    focal_net = load_ckpt_to_net(os.path.join(args.ckpt_dir, 'latest_focal.pth'), focal_net, map_location=my_devices)
 
     pose_param_net = LearnPose(scene_train.N_imgs, args.learn_R, args.learn_t, None)
     if args.multi_gpu:
@@ -182,9 +171,8 @@ def main(args):
 
     '''Generate camera traj'''
     # This spiral camera traj code is modified from https://github.com/kwea123/nerf_pl.
-    # hardcoded, this is numerically close to the formula
-    # given in the original repo. Mathematically if near=1
-    # and far=infinity, then this number will converge to 4
+    # hardcoded, this is numerically close to the formula given in the original repo. Mathematically if near=1
+    # and far=infinity, then this number will converge to 4. Borrowed from https://github.com/kwea123/nerf_pl
     N_novel_imgs = args.N_img_per_circle * args.N_circle_traj
     focus_depth = 3.5
     radii = np.percentile(np.abs(learned_poses.cpu().numpy()[:, :3, 3]), args.spiral_mag_percent, axis=0)  # (3,)
@@ -194,7 +182,10 @@ def main(args):
     c2ws = convert3x4_4x4(c2ws)  # (N, 4, 4)
 
     '''Render'''
-    result = test_one_epoch(H, W, focal_net, c2ws, near, far, model, my_devices, args)
+    fxfy = focal_net(0)
+    print('learned fx: {0:.2f}, fy: {1:.2f}'.format(fxfy[0].item(), fxfy[1].item()))
+    result = test_one_epoch(scene_train.H, scene_train.W, focal_net, c2ws, scene_train.near, scene_train.far,
+                            model, my_devices, args)
     imgs = result['imgs']
     depths = result['depths']
 

@@ -87,7 +87,7 @@ class DataLoaderAnyFolder:
         self.load_sorted = load_sorted
         self.load_img = load_img
 
-        self.imgs_dir = os.path.join(self.base_dir, self.scene_name, 'rgb')
+        self.imgs_dir = os.path.join(self.base_dir, self.scene_name, 'iphone_train_val_images')
 
         image_data = load_imgs(self.imgs_dir, self.num_img_to_load, self.start, self.end, self.skip,
                                 self.load_sorted, self.load_img)

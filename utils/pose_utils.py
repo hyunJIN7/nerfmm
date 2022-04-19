@@ -47,7 +47,7 @@ def average_poses(poses):
     return pose_avg
 
 
-def center_poses(poses):
+def center_poses(poses):  # poses: (N_images, 3, 4)
     """
     Center the poses so that we can use NDC.
     See https://github.com/bmild/nerf/issues/34

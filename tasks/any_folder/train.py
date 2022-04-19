@@ -250,7 +250,7 @@ def main(args):
     exp_root_dir.mkdir(parents=True, exist_ok=True)
     # experiment_dir = Path(os.path.join(exp_root_dir, gen_detail_name(args)))
     experiment_dir = Path(os.path.join(exp_root_dir, args.exp_name))
-    option_txt = 'option.txt'
+    option_txt = os.path.join(exp_root_dir, args.exp_name, 'option.txt')
     lines = [gen_detail_name(args)]
     with open(option_txt, 'w') as f:
         f.writelines(lines)

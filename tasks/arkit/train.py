@@ -14,7 +14,7 @@ from tqdm import tqdm
 
 sys.path.append(os.path.join(sys.path[0], '../..'))
 
-from dataloader.with_colmap import DataLoaderWithCOLMAP
+from dataloader.arkit import DataLoaderARKit
 from utils.training_utils import set_randomness, mse2psnr, save_checkpoint
 from utils.pos_enc import encode_position
 from utils.volume_op import volume_sampling_ndc, volume_rendering
@@ -300,11 +300,11 @@ def main(args):
     my_devices = torch.device('cuda:' + str(args.gpu_id))
 
     '''Create Folders'''
-    exp_root_dir = Path(os.path.join('./logs/nerfmm', args.scene_name))
+    exp_root_dir = Path(os.path.join('./logs/arkit', args.scene_name))
     exp_root_dir.mkdir(parents=True, exist_ok=True)
 #    experiment_dir = Path(os.path.join(exp_root_dir, gen_detail_name(args)))
     experiment_dir = Path(os.path.join(exp_root_dir, args.exp_name))
-    option_txt = 'option.txt'
+    option_txt = os.path.join(exp_root_dir, args.exp_name, 'option.txt')
     lines = [gen_detail_name(args)]
     with open(option_txt, 'w') as f:
         f.writelines(lines)

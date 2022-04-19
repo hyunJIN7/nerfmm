@@ -82,7 +82,6 @@ def read_meta(in_dir, use_ndc):
     This function is modified from https://github.com/kwea123/nerf_pl.
     """
     poses_bounds = np.load(os.path.join(in_dir, 'poses_bounds.npy'))  # (N_images, 17)
-
     c2ws = poses_bounds[:, :15].reshape(-1, 3, 5)  # (N_images, 3, 5)
     bounds = poses_bounds[:, -2:]  # (N_images, 2)
     H, W, focal = c2ws[0, :, -1]
@@ -90,6 +89,7 @@ def read_meta(in_dir, use_ndc):
     # correct c2ws: original c2ws has rotation in form "down right back", change to "right up back".
     # See https://github.com/bmild/nerf/issues/34
     c2ws = np.concatenate([c2ws[..., 1:2], -c2ws[..., :1], c2ws[..., 2:4]], -1)
+    #  poses: (N_images, 3, 4)
 
     # (N_images, 3, 4), (4, 4)
     c2ws, pose_avg = center_poses(c2ws)  # pose_avg @ c2ws -> centred c2ws
@@ -98,10 +98,20 @@ def read_meta(in_dir, use_ndc):
         # correct scale so that the nearest depth is at a little more than 1.0
         # See https://github.com/bmild/nerf/issues/34
         near_original = bounds.min()
+        print('####### near_original #############################')
+        print(near_original)
+        print('##################################################')
         scale_factor = near_original * 0.75  # 0.75 is the default parameter
         # the nearest depth is at 1/0.75=1.33
         bounds /= scale_factor
         c2ws[..., 3] /= scale_factor
+        print('####### bounds #############################')
+        print(bounds)
+        print('##################################################')
+        print('####### c2ws #############################')
+        print(c2ws)
+        print('##################################################')
+
     
     c2ws = convert3x4_4x4(c2ws)  # (N, 4, 4)
 

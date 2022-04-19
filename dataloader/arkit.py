@@ -104,31 +104,39 @@ def read_meta(in_dir, use_ndc):
     focal = intr[0,0]
 
     #pose
-    pose_fname =  os.path.join(in_dir, 'transforms_train_val.txt.txt')
-
-
-
-
-
-
-    #TODO : ????
+    pose_file =  os.path.join(in_dir, 'transforms_iphone.txt')
+    assert os.path.isfile(pose_file), "pose info:{} not found".format(pose_file)
+    with open(pose_file, "r") as f:  # frame.txt 읽어서
+        cam_frame_lines = f.readlines()
+    c2ws = []  # r1x y z tx r2x y z ty r3x y z tz
+    for line in cam_frame_lines:
+        line_data_list = line.split(' ')
+        if len(line_data_list) == 0:
+            continue
+        pose_raw = np.reshape(line_data_list[2:], (3, 4))
+        c2ws.append(pose_raw)
+    c2ws = np.array(c2ws, dtype=float)  # (N_images, 3, 4)
+    # pose = torch.stack([self.parse_raw_camera(opt, p) for p in pose_raw_all], dim=0)
     # (N_images, 3, 4), (4, 4)
     c2ws, pose_avg = center_poses(c2ws)  # pose_avg @ c2ws -> centred c2ws
+
+    # bounds ???
 
     if use_ndc:
         # correct scale so that the nearest depth is at a little more than 1.0
         # See https://github.com/bmild/nerf/issues/34
-        near_original = bounds.min()
+        # near_original = bounds.min()
+        near_original = 1
         scale_factor = near_original * 0.75  # 0.75 is the default parameter
         # the nearest depth is at 1/0.75=1.33
-        bounds /= scale_factor
+        # bounds /= scale_factor
         c2ws[..., 3] /= scale_factor
 
     c2ws = convert3x4_4x4(c2ws)  # (N, 4, 4)
 
     results = {
         'c2ws': c2ws,       # (N, 4, 4) np
-        'bounds': bounds,   # (N_images, 2) np
+        # 'bounds': bounds,   # (N_images, 2) np
         'H': int(H),        # scalar
         'W': int(W),        # scalar
         'focal': focal,     # scalar
@@ -166,6 +174,8 @@ class DataLoaderARKit:
         self.skip = skip
         self.use_ndc = use_ndc
         self.load_img = load_img
+
+        self.imgs_dir = os.path.join(self.base_dir, self.scene_name, 'iphone_train_val_images')
 
         self.scene_dir = os.path.join(self.base_dir, self.scene_name)
         self.img_dir = os.path.join(self.scene_dir, 'images')
@@ -206,7 +216,7 @@ class DataLoaderARKit:
 if __name__ == '__main__':
     scene_name = 'LLFF/fern'
     use_ndc = True
-    scene = DataLoaderWithCOLMAP(base_dir='/your/data/path',
+    scene = DataLoaderARKit(base_dir='/your/data/path',
                                  scene_name=scene_name,
                                  data_type='train',
                                  res_ratio=8,
