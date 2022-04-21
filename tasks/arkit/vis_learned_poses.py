@@ -11,7 +11,7 @@ from utils.vis_cam_traj import draw_camera_frustum_geometry
 import torch
 import numpy as np
 
-from dataloader.with_colmap import DataLoaderWithCOLMAP
+from dataloader.arkit import DataLoaderARKit
 from utils.training_utils import set_randomness, load_ckpt_to_net
 from utils.align_traj import align_ate_c2b_use_a2b, pts_dist_max
 from utils.comp_ate import compute_ate
@@ -32,10 +32,10 @@ def parse_args():
     parser.add_argument('--learn_R', default=False, type=bool)
     parser.add_argument('--learn_t', default=False, type=bool)
 
-    parser.add_argument('--init_pose_colmap', default=False, type=bool,
-                        help='set this to True if the nerfmm model is trained from COLMAP init.')
-    parser.add_argument('--init_focal_colmap', default=False, type=bool,
-                        help='set this to True if the nerfmm model is trained from COLMAP init.')
+    parser.add_argument('--init_pose_arkit', default=False, type=bool,
+                        help='set this to True if the nerfmm model is trained from ARKit init.')
+    parser.add_argument('--init_focal_arkit', default=False, type=bool,
+                        help='set this to True if the nerfmm model is trained from ARKit init.')
 
     parser.add_argument('--resize_ratio', type=int, default=8, help='lower the image resolution with this ratio')
 
@@ -57,8 +57,8 @@ def main(args):
     pose_out_dir = Path(os.path.join(args.ckpt_dir, 'pose_out'))
     pose_out_dir.mkdir(parents=True, exist_ok=True)
 
-    '''Get COLMAP poses'''
-    scene_train = DataLoaderWithCOLMAP(base_dir=args.base_dir,
+    '''Get ARKit poses'''
+    scene_train = DataLoaderARKit(base_dir=args.base_dir,
                                        scene_name=args.scene_name,
                                        data_type='train',
                                        res_ratio=args.resize_ratio,
@@ -67,28 +67,28 @@ def main(args):
                                        use_ndc=True,
                                        load_img=False)
 
-    # scale colmap poses to unit sphere
-    ts_colmap = scene_train.c2ws[:, :3, 3]  # (N, 3)
-    scene_train.c2ws[:, :3, 3] /= pts_dist_max(ts_colmap)
-    scene_train.c2ws[:, :3, 3] *= 2.0
+    # scale arkit poses to unit sphere
+    ts_arkit = scene_train.c2ws[:, :3, 3]  # (N, 3)
+    scene_train.c2ws[:, :3, 3] /= pts_dist_max(ts_arkit)
+    scene_train.c2ws[:, :3, 3] *= 2.0 #why *2??
 
     '''Load scene meta'''
     H, W = scene_train.H, scene_train.W
-    colmap_focal = scene_train.focal
+    arkit_focal = scene_train.focal
 
-    print('Intrinsic: H: {0:4d}, W: {1:4d}, COLMAP focal {2:.2f}.'.format(H, W, colmap_focal))
+    print('Intrinsic: H: {0:4d}, W: {1:4d}, ARKit focal {2:.2f}.'.format(H, W, arkit_focal))
 
     '''Model Loading'''
-    if args.init_focal_colmap:
-        focal_net = LearnFocal(H, W, args.learn_focal, args.fx_only, order=args.focal_order, init_focal=colmap_focal)
+    if args.init_focal_arkit:
+        focal_net = LearnFocal(H, W, args.learn_focal, args.fx_only, order=args.focal_order, init_focal=arkit_focal)
     else:
         focal_net = LearnFocal(H, W, args.learn_focal, args.fx_only, order=args.focal_order)
-        # only load learned focal if we do not init with colmap focal
+        # only load learned focal if we do not init with arkit focal
         focal_net = load_ckpt_to_net(os.path.join(args.ckpt_dir, 'latest_focal.pth'), focal_net, map_location=my_devices)
     fxfy = focal_net(0)
-    print('COLMAP focal: {0:.2f}, learned fx: {1:.2f}, fy: {2:.2f}'.format(colmap_focal, fxfy[0].item(), fxfy[1].item()))
+    print('ARKit focal: {0:.2f}, learned fx: {1:.2f}, fy: {2:.2f}'.format(arkit_focal, fxfy[0].item(), fxfy[1].item()))
 
-    if args.init_pose_colmap:
+    if args.init_pose_arkit:
         pose_param_net = LearnPose(scene_train.N_imgs, args.learn_R, args.learn_t, scene_train.c2ws)
     else:
         pose_param_net = LearnPose(scene_train.N_imgs, args.learn_R, args.learn_t, None)
@@ -108,27 +108,27 @@ def main(args):
     est_traj_color = np.array([39, 125, 161], dtype=np.float32) / 255
     cmp_traj_color = np.array([249, 65, 68], dtype=np.float32) / 255
 
-    '''Align est traj to colmap traj'''
+    '''Align est traj to arkit traj'''
     c2ws_est_to_draw_align2cmp = c2ws_est.clone()
-    if args.ATE_align:  # Align learned poses to colmap poses
+    if args.ATE_align:  # Align learned poses to arkit poses
         c2ws_est_aligned = align_ate_c2b_use_a2b(c2ws_est, c2ws_cmp)  # (N, 4, 4)
         c2ws_est_to_draw_align2cmp = c2ws_est_aligned
 
         # compute ate
         stats_tran_est, stats_rot_est, _ = compute_ate(c2ws_est_aligned, c2ws_cmp, align_a2b=None)
-        print('From est to colmap: tran err {0:.3f}, rot err {1:.2f}'.format(stats_tran_est['mean'],
+        print('From est to arkit: tran err {0:.3f}, rot err {1:.2f}'.format(stats_tran_est['mean'],
                                                                              stats_rot_est['mean']))
 
     frustum_est_list = draw_camera_frustum_geometry(c2ws_est_to_draw_align2cmp.cpu().numpy(), H, W,
                                                     fxfy[0], fxfy[1],
                                                     frustum_length, est_traj_color)
-    frustum_colmap_list = draw_camera_frustum_geometry(c2ws_cmp.cpu().numpy(), H, W,
-                                                       colmap_focal, colmap_focal,
+    frustum_arkit_list = draw_camera_frustum_geometry(c2ws_cmp.cpu().numpy(), H, W,
+                                                       arkit_focal, arkit_focal,
                                                        frustum_length, cmp_traj_color)
 
     geometry_to_draw = []
     geometry_to_draw.append(frustum_est_list)
-    geometry_to_draw.append(frustum_colmap_list)
+    geometry_to_draw.append(frustum_arkit_list)
 
     '''o3d for line drawing'''
     t_est_list = c2ws_est_to_draw_align2cmp[:, :3, 3]

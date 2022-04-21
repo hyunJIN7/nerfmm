@@ -37,7 +37,7 @@ def parse_args():
     parser.add_argument('--learn_R', default=False, type=bool)
     parser.add_argument('--learn_t', default=False, type=bool)
 
-    parser.add_argument('--init_focal_colmap', default=False, type=bool)
+    parser.add_argument('--init_focal_arkit', default=False, type=bool)
 
     parser.add_argument('--resize_ratio', type=int, default=4, help='lower the image resolution with this ratio')
     parser.add_argument('--num_rows_eval_img', type=int, default=10, help='split a high res image to rows in eval')
@@ -140,7 +140,7 @@ def main(args):
     arkit_focal = scene_train.focal
     near, far = scene_train.near, scene_train.far
 
-    print('Intrinsic: H: {0:4d}, W: {1:4d}, COLMAP focal {2:.2f}.'.format(H, W, arkit_focal))
+    print('Intrinsic: H: {0:4d}, W: {1:4d}, ARKit focal {2:.2f}.'.format(H, W, arkit_focal))
     print('near: {0:.1f}, far: {1:.1f}.'.format(near, far))
 
     '''Model Loading'''
@@ -157,7 +157,7 @@ def main(args):
         model = model.to(device=my_devices)
     model = load_ckpt_to_net(os.path.join(args.ckpt_dir, 'latest_nerf.pth'), model, map_location=my_devices)
 
-    if args.init_focal_colmap:
+    if args.init_focal_arkit:
         focal_net = LearnFocal(H, W, args.learn_focal, args.fx_only, order=args.focal_order, init_focal=arkit_focal)
     else:
         focal_net = LearnFocal(H, W, args.learn_focal, args.fx_only, order=args.focal_order)
@@ -165,8 +165,8 @@ def main(args):
         focal_net = torch.nn.DataParallel(focal_net).to(device=my_devices)
     else:
         focal_net = focal_net.to(device=my_devices)
-    # do not load learned focal if we use colmap focal
-    if not args.init_focal_colmap:
+    # do not load learned focal if we use arkit focal
+    if not args.init_focal_arkit:
         focal_net = load_ckpt_to_net(os.path.join(args.ckpt_dir, 'latest_focal.pth'), focal_net, map_location=my_devices)
     fxfy = focal_net(0)
     print('ARKit focal: {0:.2f}, learned fx: {1:.2f}, fy: {2:.2f}'.format(arkit_focal, fxfy[0].item(), fxfy[1].item()))

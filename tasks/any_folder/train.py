@@ -49,6 +49,9 @@ def parse_args():
                         help='learning rate schedule milestones')
     parser.add_argument('--focal_lr_gamma', type=float, default=0.9, help="learning rate milestones gamma")
 
+    parser.add_argument('--store_pose_history', type=bool, default=True, help='store pose history to log dir')
+    #TODO: feat
+
     parser.add_argument('--learn_R', default=True, type=eval, choices=[True, False])
     parser.add_argument('--learn_t', default=True, type=eval, choices=[True, False])
     parser.add_argument('--pose_lr', default=0.001, type=float)
@@ -96,6 +99,22 @@ def gen_detail_name(args):
              '_' + str(args.alias) + \
              '_' + str(datetime.datetime.now().strftime('%y%m%d_%H%M'))
     return outstr
+
+def store_current_pose(pose_net, pose_history_dir, epoch_i):
+    pose_net.eval()
+
+    num_cams = pose_net.module.num_cams if isinstance(pose_net, torch.nn.DataParallel) else pose_net.num_cams
+
+    c2w_list = []
+    for i in range(num_cams):
+        c2w = pose_net(i)  # (4, 4)
+        c2w_list.append(c2w)
+
+    c2w_list = torch.stack(c2w_list)  # (N, 4, 4)
+    c2w_list = c2w_list.detach().cpu().numpy()
+
+    np.save(os.path.join(pose_history_dir, str(epoch_i).zfill(6)), c2w_list)
+    return
 
 
 def model_render_image(c2w, rays_cam, t_vals, near, far, H, W, fxfy, model, perturb_t, sigma_noise_std,
@@ -250,15 +269,20 @@ def main(args):
     exp_root_dir.mkdir(parents=True, exist_ok=True)
     # experiment_dir = Path(os.path.join(exp_root_dir, gen_detail_name(args)))
     experiment_dir = Path(os.path.join(exp_root_dir, args.exp_name))
-    option_txt = os.path.join(exp_root_dir, args.exp_name, 'option.txt')
-    lines = [gen_detail_name(args)]
-    with open(option_txt, 'w') as f:
-        f.writelines(lines)
+    # option_txt = os.path.join(exp_root_dir, args.exp_name, 'option.txt')
+    # lines = [gen_detail_name(args)]
+    # with open(option_txt, 'w') as f:
+    #     f.writelines(lines)
     experiment_dir.mkdir(parents=True, exist_ok=True)
     shutil.copy('./models/nerf_models.py', experiment_dir)
     shutil.copy('./models/intrinsics.py', experiment_dir)
     shutil.copy('./models/poses.py', experiment_dir)
     shutil.copy('./tasks/any_folder/train.py', experiment_dir)
+
+    #TODO : pose_histroy 추가함
+    if args.store_pose_history:
+        pose_history_dir = Path(os.path.join(experiment_dir, 'pose_history'))
+        pose_history_dir.mkdir(parents=True, exist_ok=True)
 
     '''LOG'''
     logger = logging.getLogger()
@@ -344,6 +368,13 @@ def main(args):
         writer.add_scalar('train/lr', scheduler_nerf.get_lr()[0], epoch_i)
         logger.info('{0:6d} ep: Train: L2 loss: {1:.4f}, PSNR: {2:.3f}'.format(epoch_i, train_L2_loss, train_psnr))
         tqdm.write('{0:6d} ep: Train: L2 loss: {1:.4f}, PSNR: {2:.3f}'.format(epoch_i, train_L2_loss, train_psnr))
+
+        pose_history_milestone = list(range(0, 100, 5)) + list(range(100, 1000, 100)) + list(range(1000, 10000, 1000))
+        if epoch_i in pose_history_milestone:
+            with torch.no_grad():
+                if args.store_pose_history:
+                    store_current_pose(pose_param_net, pose_history_dir, epoch_i)
+
 
         if epoch_i % args.eval_interval == 0 and epoch_i > 0:
             with torch.no_grad():

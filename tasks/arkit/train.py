@@ -46,7 +46,7 @@ def parse_args():
     parser.add_argument('--nerf_lr_gamma', type=float, default=0.9954, help="learning rate milestones gamma")
 
     parser.add_argument('--learn_focal', default=True, type=eval, choices=[True, False])
-    parser.add_argument('--fx_only', default=False, type=eval, choices=[True, False])
+    parser.add_argument('--fx_only', default=False, type=eval, choices=[True, False] , help="If True, output [fx, fx]. If False, output [fx, fy]")
     parser.add_argument('--focal_order', default=2, type=int)
     parser.add_argument('--focal_lr', default=0.001, type=float)
     parser.add_argument('--focal_milestones', default=list(range(0, 10000, 100)), type=int, nargs='+',
@@ -64,10 +64,10 @@ def parse_args():
 
     parser.add_argument('--start_refine_pose_epoch', type=int, default=-1,
                         help='Set to -1 to init pose from identity matrices. Set to a epoch number >= 0 '
-                             'to init poses from COLMAP and start refining them from this epoch.')
+                             'to init poses from ARKit and start refining them from this epoch.')
     parser.add_argument('--start_refine_focal_epoch', type=int, default=-1,
                         help='Set to -1 to init focal from image resolution. Set to a epoch number >= 0 '
-                             'to init focals from COLMAP and start refining them from this epoch.')
+                             'to init focals from ARKit and start refining them from this epoch.')
 
     parser.add_argument('--resize_ratio', type=int, default=4, help='lower the image resolution with this ratio')
     parser.add_argument('--num_rows_eval_img', type=int, default=10, help='split a high res image to rows in eval')
@@ -221,8 +221,8 @@ def eval_one_epoch_traj(scene_train, pose_param_net):
     pose_param_net.eval()
 
     est_c2ws_train = torch.stack([pose_param_net(i) for i in range(scene_train.N_imgs)])  # (N, 4, 4)
-    colmap_c2ws_train = scene_train.c2ws  # (N, 4, 4) torch
-    stats_tran, stats_rot, stats_scale = compute_ate(est_c2ws_train, colmap_c2ws_train, align_a2b='sim3')
+    arkit_c2ws_train = scene_train.c2ws  # (N, 4, 4) torch
+    stats_tran, stats_rot, stats_scale = compute_ate(est_c2ws_train, arkit_c2ws_train, align_a2b='sim3')
 
     return stats_tran, stats_rot, stats_scale
 
@@ -304,10 +304,10 @@ def main(args):
     exp_root_dir.mkdir(parents=True, exist_ok=True)
 #    experiment_dir = Path(os.path.join(exp_root_dir, gen_detail_name(args)))
     experiment_dir = Path(os.path.join(exp_root_dir, args.exp_name))
-    option_txt = os.path.join(exp_root_dir, args.exp_name, 'option.txt')
-    lines = [gen_detail_name(args)]
-    with open(option_txt, 'w') as f:
-        f.writelines(lines)
+    # option_txt = os.path.join(exp_root_dir, args.exp_name, 'option.txt')
+    # lines = [gen_detail_name(args)]
+    # with open(option_txt, 'w') as f:
+    #     f.writelines(lines)
     experiment_dir.mkdir(parents=True, exist_ok=True)
     shutil.copy('./models/nerf_models.py', experiment_dir)
     shutil.copy('./models/intrinsics.py', experiment_dir)
@@ -341,7 +341,7 @@ def main(args):
                                        skip=args.train_skip,
                                        use_ndc=args.use_ndc)
 
-    # The COLMAP eval poses are not in the same camera space that we learned so we can only check NVS
+    # The ARKit eval poses are not in the same camera space that we learned so we can only check NVS
     # with a 4x4 identity pose.
     eval_c2ws = torch.eye(4).unsqueeze(0).float()  # (1, 4, 4)
 
@@ -433,10 +433,12 @@ def main(args):
                                                                                                                     eval_stats_scale['mean']))
 
                 fxfy = focal_net(0)
-                tqdm.write('Est fx: {0:.2f}, fy {1:.2f}, COLMAP focal: {2:.2f}'.format(fxfy[0].item(), fxfy[1].item(),
+                # print('##### {} {}'.format(scene_train.focal, scene_train.focal[0].item()))
+                tqdm.write('Est fx: {0:.2f}, fy {1:.2f}, ARKit focal: {2:.2f}'.format(fxfy[0].item(), fxfy[1].item(),
                                                                                        scene_train.focal))
-                logger.info('Est fx: {0:.2f}, fy {1:.2f}, COLMAP focal: {2:.2f}'.format(fxfy[0].item(), fxfy[1].item(),
+                logger.info('Est fx: {0:.2f}, fy {1:.2f}, ARKit focal: {2:.2f}'.format(fxfy[0].item(), fxfy[1].item(),
                                                                                         scene_train.focal))
+
                 if torch.is_tensor(fxfy):
                     L1_focal = torch.abs(fxfy - scene_train.focal).mean().item()
                 else:

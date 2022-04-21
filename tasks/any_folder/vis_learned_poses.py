@@ -85,6 +85,20 @@ def main(args):
     frustum_est_list = draw_camera_frustum_geometry(c2ws_est.cpu().numpy(), scene_train.H, scene_train.W,
                                                     fxfy[0], fxfy[1],
                                                     frustum_length, frustum_color)
+    #c2ws:(N, 4, 4)  np.array
+    # c2ws_est.cpu().numpy() txt save
+    pose_file = os.path.join(args.ckpt_dir, 'refine_pose.txt')
+    pose_lines = [] # (4,4) -> line
+    len = c2ws_est.cpu().numpy().shape()[0]
+    for i in range(len):
+        line = []
+        for j in range(3):
+            for k in range(4):
+                line.append(str( c2ws_est.cpu().numpy()[i][j][k]))
+        pose_lines.append(' '.join(line) + '\n')  # (3x4)shape이 row 한줄로 이어 붙임.
+    with open(pose_file, 'w') as f:
+        f.writelines(pose_lines)
+
 
     geometry_to_draw = []
     geometry_to_draw.append(frustum_est_list)

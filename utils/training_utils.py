@@ -49,7 +49,7 @@ def save_checkpoint(epoch, model, optimizer, path, ckpt_name='checkpoint'):
     torch.save(state, savepath)
 
 
-def load_ckpt_to_net(ckpt_path, net, map_location=None, strict=True):
+def load_ckpt_to_net(ckpt_path, net, map_location=None, strict=False): #TODO: strict False
     if map_location is None:
         ckpt = torch.load(ckpt_path)
     else:

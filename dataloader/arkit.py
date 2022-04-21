@@ -6,7 +6,7 @@ import numpy as np
 from tqdm import tqdm
 import imageio
 
-from utils.comp_ray_dir import comp_ray_dir_cam
+from utils.comp_ray_dir import * #comp_ray_dir_cam_fxfy
 from utils.pose_utils import center_poses
 from utils.lie_group_helper import convert3x4_4x4
 
@@ -98,10 +98,13 @@ def read_meta(in_dir, use_ndc):
     # origin video's origin_size(1920,1440) -> extract frame (640,480)
     ori_size = (1920, 1440)
     size = (640, 480)
-    H, W = [640,480]
+    W, H = [640,480]
     intr[0, :] /= (ori_size[0] / size[0])
     intr[1, :] /= (ori_size[1] / size[1])  # resize 전 크기가 orgin_size 이기 때문에
-    focal = intr[0,0]
+    # focal = torch.tensor([intr[0,0],intr[1,1]]).float()
+    focal =  intr[0,0]
+    focal_x = intr[0,0]
+    focal_y = intr[1, 1]
 
     #pose
     pose_file =  os.path.join(in_dir, 'transforms_iphone.txt')
@@ -139,7 +142,9 @@ def read_meta(in_dir, use_ndc):
         # 'bounds': bounds,   # (N_images, 2) np
         'H': int(H),        # scalar
         'W': int(W),        # scalar
-        'focal': focal,     # scalar
+        'focal': focal ,  #[focal_x,focal_y],     # scalar
+        'focal_x' : focal_x,
+        'focal_y': focal_y,
         'pose_avg': pose_avg,  # (4, 4) np
     }
     return results
@@ -185,13 +190,17 @@ class DataLoaderARKit:
         self.c2ws = meta['c2ws']  # (N, 4, 4) all camera pose
         self.H = meta['H']
         self.W = meta['W']
-        self.focal = float(meta['focal'])
+        self.focal = float(meta['focal']) #torch.tensor(meta['focal']).float() #
+        self.focal_x = float(meta['focal_x'])
+        self.focal_y = float(meta['focal_y'])
         self.total_N_imgs = self.c2ws.shape[0]
 
         if self.res_ratio > 1:
             self.H = self.H // self.res_ratio
             self.W = self.W // self.res_ratio
             self.focal /= self.res_ratio
+            self.focal_x /= self.res_ratio
+            self.focal_y /= self.res_ratio
 
         self.near = 0.0
         self.far = 1.0
@@ -207,6 +216,7 @@ class DataLoaderARKit:
 
         # generate cam ray dir.
         self.ray_dir_cam = comp_ray_dir_cam(self.H, self.W, self.focal)  # (H, W, 3) torch.float32
+        # self.ray_dir_cam = comp_ray_dir_cam_fxfy(self.H, self.W, self.focal[0], self.focal[1]) # (H, W, 3) torch.float32
 
         # convert np to torch.
         self.c2ws = torch.from_numpy(self.c2ws).float()  # (N, 4, 4) torch.float32
