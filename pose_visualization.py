@@ -20,8 +20,11 @@ def config_parser():
 
     parser.add_argument("--datadir", type=str, default='./data/any_folder_demo/llff_main_computers',
                         help='data directory')
-    parser.add_argument("--logsdir", type=str, default='./logs/any_folder/llff_main_computers/llff_main_computers_01',
+    parser.add_argument("--logsdir", type=str, default='./logs/any_folder/llff_main_computers/llff_main_computers_02',
                         help='logs name')
+    parser.add_argument("--exp_name", type=str, default='any_folder/llff_main_computers_02',
+                        help='logs name')
+
     return parser
 
 def to_hom(X):
@@ -190,14 +193,17 @@ def generate_videos_pose(args):# novel pose, raw pose
     # pose, pose_ref
     #(3,4)
     gt_pose_file = os.path.join(args.datadir, "transforms_train.txt")
-    refine_pose_file = os.path.join(args.logsdir, "transforms_train.txt")
+    # refine_pose_file = os.path.join(args.logsdir, "transforms_train.txt")
     gt_pose = load_pose(gt_pose_file,True)
-    refine_pose = load_pose(refine_pose_file,False)
+    # refine_pose = load_pose(refine_pose_file,False)
     #근데  포즈 프레임을 바꿔줘야해
+
+    refine_pose = np.load(os.path.join(args.logsdir,'pose_history' ,'000000.npy'))  # (N_images, 17)
+
 
 
     fig = plt.figure(figsize=(10,10))
-    cam_path = "novel_poses"
+    cam_path = 'refine_pose' + '/{}'.format(args.exp_name)
     os.makedirs(cam_path,exist_ok=True)
     plot_save_novel_poses(fig,refine_pose,pose_ref=gt_pose,path=cam_path,ep=args.expname)
     plt.close()

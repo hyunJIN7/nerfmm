@@ -98,19 +98,19 @@ def read_meta(in_dir, use_ndc):
         # correct scale so that the nearest depth is at a little more than 1.0
         # See https://github.com/bmild/nerf/issues/34
         near_original = bounds.min()
-        print('####### near_original #############################')
-        print(near_original)
-        print('##################################################')
+        # print('####### near_original #############################')
+        # print(near_original)
+        # print('##################################################')
         scale_factor = near_original * 0.75  # 0.75 is the default parameter
         # the nearest depth is at 1/0.75=1.33
         bounds /= scale_factor
         c2ws[..., 3] /= scale_factor
-        print('####### bounds #############################')
-        print(bounds)
-        print('##################################################')
-        print('####### c2ws #############################')
-        print(c2ws)
-        print('##################################################')
+        # print('####### bounds #############################')
+        # print(bounds)
+        # print('##################################################')
+        # print('####### c2ws #############################')
+        # print(c2ws)
+        # print('##################################################')
 
     
     c2ws = convert3x4_4x4(c2ws)  # (N, 4, 4)
