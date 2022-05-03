@@ -118,7 +118,7 @@ def store_current_pose(pose_net, pose_history_dir, epoch_i):
     for i in range(num_cams):
         c2w = pose_net(i)  # (4, 4)
         c2w_list.append(c2w)
-        c2w_line_list.append(torch.reshape(c2w,(-1,16))[:12])
+        c2w_line_list.append(' '.join(torch.reshape(c2w,(-1,16))[:12]) + '\n')
 
     c2w_list = torch.stack(c2w_list)  # (N, 4, 4)
     c2w_list = c2w_list.detach().cpu().numpy()
