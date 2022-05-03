@@ -58,8 +58,8 @@ def load_ckpt_to_net(ckpt_path, net, map_location=None, strict=False): #TODO: st
     weights = ckpt['model_state_dict']
 
     if is_DataParallelModel(net):
-        net.module.load_state_dict(weights, strict=strict)
+        net.module.load_state_dict(weights, strict=False) #strict=strict
     else:
-        net.load_state_dict(weights, strict=strict)
+        net.load_state_dict(weights, strict=False) #strict=strict
 
     return net
