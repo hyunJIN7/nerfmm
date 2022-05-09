@@ -14,7 +14,7 @@ import camera
 """
 nerf.py의 novel_pose plot 위한 코드 
 """
-# python visualization_novel_view.py --expname cube
+# python pose_visualization.py --datadir ./data/any_folder_demo/llff_main_computers02 --logsdir ./logs/any_folder/llff_main_computers02/llff_main_computers02_01
 def config_parser():
     import configargparse
     parser = configargparse.ArgumentParser()
@@ -23,71 +23,7 @@ def config_parser():
                         help='data directory')
     parser.add_argument("--logsdir", type=str, default='./logs/arkit/llff_main_computers02/llff_main_computers02_01',
                         help='logs name')
-    parser.add_argument("--exp_name", type=str, default='any_folder/llff_main_computers_02',
-                        help='logs name')
-
     return parser
-
-# def to_hom(X):
-#     # get homogeneous coordinates of the input
-#     X_hom = torch.cat([X,torch.ones_like(X[...,:1])],dim=-1)
-#     return X_hom
-#
-# def cam2world(X,pose): #x 가 center ?..
-#     X_hom = to_hom(X)
-#     pose_inv = Pose().invert(pose)
-#     return X_hom@pose_inv.transpose(-1,-2)
-#
-# class Pose():
-#     """
-#     A class of operations on camera poses (PyTorch tensors with shape [...,3,4])
-#     each [3,4] camera pose takes the form of [R|t]
-#     """
-#
-#     def __call__(self,R=None,t=None):
-#         # construct a camera pose from the given R and/or t
-#         assert(R is not None or t is not None)
-#         if R is None:
-#             if not isinstance(t,torch.Tensor): t = torch.tensor(t)
-#             R = torch.eye(3,device=t.device).repeat(*t.shape[:-1],1,1)
-#         elif t is None:
-#             if not isinstance(R,torch.Tensor): R = torch.tensor(R)
-#             t = torch.zeros(R.shape[:-1],device=R.device)
-#         else:
-#             if not isinstance(R,torch.Tensor): R = torch.tensor(R)
-#             if not isinstance(t,torch.Tensor): t = torch.tensor(t)
-#         assert(R.shape[:-1]==t.shape and R.shape[-2:]==(3,3))
-#         R = R.float()
-#         t = t.float()
-#         pose = torch.cat([R,t[...,None]],dim=-1) # [...,3,4]
-#         assert(pose.shape[-2:]==(3,4))
-#         return pose
-#
-#     def invert(self,pose,use_inverse=False):
-#         # invert a camera pose
-#         R,t = pose[...,:3],pose[...,3:]
-#         R_inv = R.inverse() if use_inverse else R.transpose(-1,-2)
-#         t_inv = (-R_inv@t)[...,0]
-#         pose_inv = self(R=R_inv,t=t_inv)
-#         return pose_inv
-#
-#     def compose(self,pose_list):
-#         # compose a sequence of poses together
-#         # pose_new(x) = poseN o ... o pose2 o pose1(x)
-#         pose_new = pose_list[0]   # in novel view, [pose_shift,pose_rot,pose_shift2]
-#         for pose in pose_list[1:]:
-#             pose_new = self.compose_pair(pose_new,pose)
-#         return pose_new
-#
-#     def compose_pair(self,pose_a,pose_b):
-#         # pose_new(x) = pose_b o pose_a(x)
-#         R_a,t_a = pose_a[...,:3],pose_a[...,3:]
-#         R_b,t_b = pose_b[...,:3],pose_b[...,3:]
-#         R_new = R_b@R_a
-#         t_new = (R_b@t_a+t_b)[...,0]
-#         pose_new = self(R=R_new,t=t_new)
-#         return pose_new
-
 
 
 def get_camera_mesh(pose,depth=1):
@@ -124,8 +60,47 @@ def setup_3D_plot(ax,elev,azim,lim=None):
     ax.set_zlim(lim.z[0],lim.z[1])
     ax.view_init(elev=elev,azim=azim)
 
+
+def plot_save_2d_poses(fig,pose,pose_ref=None,path=None,ep=None):
+    # get the camera meshes
+    _,_,cam = get_camera_mesh(pose,depth=0.5)
+    cam = cam.numpy()
+    if pose_ref is not None:
+        _,_,cam_ref = get_camera_mesh(pose_ref,depth=0.5)
+        cam_ref = cam_ref.numpy()
+    # set up plot window(s)
+    plt.title("epoch {}".format(ep))
+    ax1 = fig.add_subplot(121,projection="3d")
+    ax2 = fig.add_subplot(122,projection="3d")
+    setup_3D_plot(ax1,elev=-90,azim=-90,lim=edict(x=(-1,1),y=(-1,1),z=(-1,1)))  #lim=edict(x=(-1,1),y=(-1,1),z=(-1,1))
+    setup_3D_plot(ax2,elev=0,azim=-90,lim=edict(x=(-1,1),y=(-1,1),z=(-1,1)))  #lim=edict(x=(-1,1),y=(-1,1),z=(-1,1))
+    ax1.set_title("forward-facing view",pad=0)
+    ax2.set_title("top-down view",pad=0)
+    plt.subplots_adjust(left=0,right=1,bottom=0,top=0.95,wspace=0,hspace=0)
+    plt.margins(tight=True,x=0,y=0)
+    # plot the cameras
+    N = len(cam)
+    color = plt.get_cmap("gist_rainbow")
+    for i in range(N):
+        if pose_ref is not None:
+            ax1.plot(cam_ref[i,:,0],cam_ref[i,:,1],cam_ref[i,:,2],color=(0.3,0.3,0.3),linewidth=1)
+            ax2.plot(cam_ref[i,:,0],cam_ref[i,:,1],cam_ref[i,:,2],color=(0.3,0.3,0.3),linewidth=1)
+            ax1.scatter(cam_ref[i,5,0],cam_ref[i,5,1],cam_ref[i,5,2],color=(0.3,0.3,0.3),s=40)
+            ax2.scatter(cam_ref[i,5,0],cam_ref[i,5,1],cam_ref[i,5,2],color=(0.3,0.3,0.3),s=40)
+        c = np.array(color(float(i)/N))*0.8
+        ax1.plot(cam[i,:,0],cam[i,:,1],cam[i,:,2],color=c)
+        ax2.plot(cam[i,:,0],cam[i,:,1],cam[i,:,2],color=c)
+        ax1.scatter(cam[i,5,0],cam[i,5,1],cam[i,5,2],color=c,s=40)
+        ax2.scatter(cam[i,5,0],cam[i,5,1],cam[i,5,2],color=c,s=40)
+    png_fname = "{}/2d_{}.png".format(path,ep)
+    plt.savefig(png_fname,dpi=75)
+    # clean up
+    plt.clf()
+
+
+
 # for novel_view test
-def plot_save_novel_poses(fig,pose,pose_ref=None,path=None,ep=None): # pose = novel_view, pose_ref= rectangle_pose
+def plot_save_3d_poses(fig,pose,pose_ref=None,path=None,ep=None): # pose = novel_view, pose_ref= rectangle_pose
     # get the camera meshes
     _,_,cam = get_camera_mesh(pose,depth=0.5)
     cam = cam.numpy()
@@ -135,7 +110,7 @@ def plot_save_novel_poses(fig,pose,pose_ref=None,path=None,ep=None): # pose = no
     # set up plot window(s)
     ax = fig.add_subplot(111,projection="3d")
     ax.set_title(" {}".format(ep),pad=0)
-    setup_3D_plot(ax,elev=10,azim=50,lim=edict(x=(-1,1),y=(-1,1),z=(-1,1))) #lim=edict(x=(-1,1),y=(-1,1),z=(-0.5,0.3)) lim=edict(x=(-3,3),y=(-3,3),z=(-3,2.4))
+    setup_3D_plot(ax,elev=10,azim=50,lim=edict(x=(-0.5,0.5),y=(-0.5,0.5),z=(-0.5,0.5))) #lim=edict(x=(-1,1),y=(-1,1),z=(-0.5,0.3)) lim=edict(x=(-3,3),y=(-3,3),z=(-3,2.4))
     plt.subplots_adjust(left=0,right=1,bottom=0,top=0.95,wspace=0,hspace=0)
     plt.margins(tight=True,x=0,y=0)
     # plot the cameras
@@ -163,7 +138,7 @@ def plot_save_novel_poses(fig,pose,pose_ref=None,path=None,ep=None): # pose = no
         ax.plot(cam_ref[i,5,0],
                 cam_ref[i,5,1],
                 cam_ref[i,5,2],color=(1,0,0),linewidth=3)
-    png_fname = "{}/{}.png".format(path,ep)
+    png_fname = "{}/3d_{}.png".format(path,ep)
     plt.savefig(png_fname,dpi=75)
     # clean up
     plt.clf()
@@ -196,21 +171,30 @@ def generate_videos_pose(args):
     [right,up,back] --> [right, forward, up]
 
     """
+
+    #일단 초반 N개만
+    N = 20
+
     #GT pose load
     gt_pose_file = os.path.join(args.datadir, "transforms_train.txt")
-    gt_pose = load_pose(gt_pose_file)
+    gt_pose = load_pose(gt_pose_file)[:N]
 
     gt_pose = torch.stack([parse_raw_camera(p) for p in gt_pose], dim=0) #[right,up,back] --> [right, forward, up]
 
     pose_history_milestone = list(range(0, 100, 5)) + list(range(100, 1000, 100)) + list(range(1000, 10000, 1000))
     for epoch_i in pose_history_milestone:
         #refine pose load
-        refine_pose = np.load(os.path.join(args.logsdir,'pose_history', str(epoch_i).zfill(6) + '.npy'))[:,:3,:]
+        refine_pose = np.load(os.path.join(args.logsdir,'pose_history', str(epoch_i).zfill(6) + '.npy'))[:N,:3,:]
         refine_pose = torch.from_numpy(refine_pose).float()
-        fig = plt.figure(figsize=(10,10))
+        refine_pose = torch.stack([parse_raw_camera(p) for p in refine_pose], dim=0)  # [right,up,back] --> [right, forward, up]
+
         cam_path =  os.path.join(args.logsdir,'pose_history_image')
         os.makedirs(cam_path,exist_ok=True)
-        plot_save_novel_poses(fig,refine_pose,pose_ref=gt_pose,path=cam_path,ep=epoch_i)
+        fig = plt.figure(figsize=(10,10))
+        plot_save_3d_poses(fig,refine_pose,pose_ref=gt_pose,path=cam_path,ep=epoch_i)
+        plt.close()
+        fig = plt.figure(figsize=(16,18))
+        plot_save_2d_poses(fig,refine_pose,pose_ref=gt_pose,path=cam_path,ep=epoch_i)
         plt.close()
 
 # python pose_visualization.py
