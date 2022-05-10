@@ -107,7 +107,7 @@ def read_meta(in_dir, use_ndc):
     focal_y = intr[1, 1]
 
     #pose
-    pose_file =  os.path.join(in_dir, 'transforms_iphone.txt')
+    pose_file =  os.path.join(in_dir, 'transforms_train.txt')
     assert os.path.isfile(pose_file), "pose info:{} not found".format(pose_file)
     with open(pose_file, "r") as f:  # frame.txt 읽어서
         cam_frame_lines = f.readlines()
@@ -121,10 +121,10 @@ def read_meta(in_dir, use_ndc):
     c2ws = np.array(c2ws, dtype=float)  # (N_images, 3, 4)
     # pose = torch.stack([self.parse_raw_camera(opt, p) for p in pose_raw_all], dim=0)
     # (N_images, 3, 4), (4, 4)
-    c2ws, pose_avg = center_poses(c2ws)  # pose_avg @ c2ws -> centred c2ws
+    #c2ws, pose_avg = center_poses(c2ws)  # pose_avg @ c2ws -> centred c2ws
+    _ , pose_avg = center_poses(c2ws)  # pose_avg @ c2ws -> centred c2ws #TODO: test
 
     # bounds ???
-
     if use_ndc:
         # correct scale so that the nearest depth is at a little more than 1.0
         # See https://github.com/bmild/nerf/issues/34
@@ -180,7 +180,7 @@ class DataLoaderARKit:
         self.use_ndc = use_ndc
         self.load_img = load_img
 
-        self.imgs_dir = os.path.join(self.base_dir, self.scene_name, 'iphone_train_val_images')
+        self.imgs_dir = os.path.join(self.base_dir, self.scene_name, 'train') #iphone_train_val_images
 
         self.scene_dir = os.path.join(self.base_dir, self.scene_name)
         self.img_dir = os.path.join(self.scene_dir, 'images')

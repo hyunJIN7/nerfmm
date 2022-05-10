@@ -9,6 +9,8 @@ from easydict import EasyDict as edict
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 import matplotlib.pyplot as plt
 import lpips
+import PIL
+import imageio
 import camera
 
 """
@@ -123,8 +125,8 @@ def plot_save_3d_poses(fig,pose,pose_ref=None,path=None,ep=None): # pose = novel
         ax.plot(cam_ref[i, :, 0], cam_ref[i, :, 1], cam_ref[i, :, 2], color=ref_color, linewidth=0.5)
         ax.scatter(cam_ref[i,5,0],cam_ref[i,5,1],cam_ref[i,5,2],color=ref_color,s=20)
 
-    png_fname = "{}/{}_GT.png".format(path,ep)
-    plt.savefig(png_fname,dpi=75)
+    # png_fname = "{}/{}_GT.png".format(path,ep)
+    # plt.savefig(png_fname,dpi=75)
     ax.add_collection3d(Poly3DCollection([v[:4] for v in cam],alpha=0.2,facecolor=pred_color))
     for i in range(N):
         ax.plot(cam[i,:,0],cam[i,:,1],cam[i,:,2],color=pred_color,linewidth=1)
@@ -166,12 +168,9 @@ def parse_raw_camera(pose_raw):
     return pose
 
 def generate_videos_pose(args):
-    #근데  포즈 프레임을 바꿔줘야해
     """
     [right,up,back] --> [right, forward, up]
-
     """
-
     #일단 초반 N개만
     N = 20
 
@@ -181,6 +180,11 @@ def generate_videos_pose(args):
 
     gt_pose = torch.stack([parse_raw_camera(p) for p in gt_pose], dim=0) #[right,up,back] --> [right, forward, up]
 
+    cam_path = os.path.join(args.logsdir, 'pose_history_image')
+    os.makedirs(cam_path, exist_ok=True)
+    pose_3d_imgs = []
+    pose_2d_imgs = []
+
     pose_history_milestone = list(range(0, 100, 5)) + list(range(100, 1000, 100)) + list(range(1000, 10000, 1000))
     for epoch_i in pose_history_milestone:
         #refine pose load
@@ -188,17 +192,28 @@ def generate_videos_pose(args):
         refine_pose = torch.from_numpy(refine_pose).float()
         refine_pose = torch.stack([parse_raw_camera(p) for p in refine_pose], dim=0)  # [right,up,back] --> [right, forward, up]
 
-        cam_path =  os.path.join(args.logsdir,'pose_history_image')
-        os.makedirs(cam_path,exist_ok=True)
         fig = plt.figure(figsize=(10,10))
-        plot_save_3d_poses(fig,refine_pose,pose_ref=gt_pose,path=cam_path,ep=epoch_i)
+        plot_save_3d_poses(fig,refine_pose,pose_ref=gt_pose,path=cam_path+'_3d',ep=epoch_i)
         plt.close()
         fig = plt.figure(figsize=(16,18))
-        plot_save_2d_poses(fig,refine_pose,pose_ref=gt_pose,path=cam_path,ep=epoch_i)
+        plot_save_2d_poses(fig,refine_pose,pose_ref=gt_pose,path=cam_path+'_2d',ep=epoch_i)
         plt.close()
+
+        image_fname_3d = "{}_3d/3d_{}.png".format(cam_path,epoch_i)
+        image_3d = PIL.Image.fromarray(imageio.imread(image_fname_2d))
+        pose_3d_imgs.append(image_3d)
+
+        image_fname_2d = "{}_2d/2d_{}.png".format(cam_path, epoch_i)
+        image_2d = PIL.Image.fromarray(imageio.imread(image_fname_2d))
+        pose_2d_imgs.append(image_2d)
+
+    imageio.mimwrite(os.path.join(video_out_dir, 'img.gif'), imgs, fps=30)
+    imageio.mimwrite(os.path.join(video_out_dir, 'depth.gif'), depths, fps=30)
+
 
 # python pose_visualization.py
 if __name__=='__main__':
     parser = config_parser()
     args = parser.parse_args()
     generate_videos_pose(args)
+
