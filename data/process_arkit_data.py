@@ -32,7 +32,7 @@ def config_parser():
     #keyframe options
     parser.add_argument("--min_angle_keyframe", type=float, default=15,
                         help='minimum angle between key frames')
-    parser.add_argument("--min_distance_keyframe", type=float, default=0.2,
+    parser.add_argument("--min_distance_keyframe", type=float, default=0.3,
                         help='minimum distance between key frames')
 
     #data
@@ -57,9 +57,9 @@ def extract_frames(video_path, out_folder, size):
     frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     print('Frame count : ', frame_count)
     fps = cap.get(cv2.CAP_PROP_FPS)
-    print('Before FPS: ',fps)
-    cap.set(cv2.CAP_PROP_FPS,30)
-    print('After FPS: ',fps)
+    print('FPS: ',fps)
+    # cap.set(cv2.CAP_PROP_FPS,30)
+    # print('After FPS: ',fps)
     for i in tqdm(range(frame_count)):
         ret, frame = cap.read()
         if ret is not True:

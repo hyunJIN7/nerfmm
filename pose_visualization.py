@@ -199,16 +199,16 @@ def generate_videos_pose(args):
         plot_save_2d_poses(fig,refine_pose,pose_ref=gt_pose,path=cam_path+'_2d',ep=epoch_i)
         plt.close()
 
-        image_fname_3d = "{}_3d/3d_{}.png".format(cam_path,epoch_i)
-        image_3d = PIL.Image.fromarray(imageio.imread(image_fname_2d))
-        pose_3d_imgs.append(image_3d)
+        # image_fname_3d = "{}_3d/3d_{}.png".format(cam_path,epoch_i)
+        # image_3d = PIL.Image.fromarray(imageio.imread(image_fname_2d))
+        # pose_3d_imgs.append(image_3d)
+        #
+        # image_fname_2d = "{}_2d/2d_{}.png".format(cam_path, epoch_i)
+        # image_2d = PIL.Image.fromarray(imageio.imread(image_fname_2d))
+        # pose_2d_imgs.append(image_2d)
 
-        image_fname_2d = "{}_2d/2d_{}.png".format(cam_path, epoch_i)
-        image_2d = PIL.Image.fromarray(imageio.imread(image_fname_2d))
-        pose_2d_imgs.append(image_2d)
-
-    imageio.mimwrite(os.path.join(video_out_dir, 'img.gif'), imgs, fps=30)
-    imageio.mimwrite(os.path.join(video_out_dir, 'depth.gif'), depths, fps=30)
+    # imageio.mimwrite(os.path.join(video_out_dir, 'img.gif'), imgs, fps=30)
+    # imageio.mimwrite(os.path.join(video_out_dir, 'depth.gif'), depths, fps=30)
 
 
 # python pose_visualization.py
