@@ -121,8 +121,8 @@ def read_meta(in_dir, use_ndc):
     c2ws = np.array(c2ws, dtype=float)  # (N_images, 3, 4)
     # pose = torch.stack([self.parse_raw_camera(opt, p) for p in pose_raw_all], dim=0)
     # (N_images, 3, 4), (4, 4)
-    #c2ws, pose_avg = center_poses(c2ws)  # pose_avg @ c2ws -> centred c2ws
-    _ , pose_avg = center_poses(c2ws)  # pose_avg @ c2ws -> centred c2ws #TODO: test
+    c2ws, pose_avg = center_poses(c2ws)  # pose_avg @ c2ws -> centred c2ws
+    # _ , pose_avg = center_poses(c2ws)  # pose_avg @ c2ws -> centred c2ws #TODO: test
 
     # bounds ???
     if use_ndc:
