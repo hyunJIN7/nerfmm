@@ -16,15 +16,19 @@ import camera
 """
 nerf.py의 novel_pose plot 위한 코드 
 """
-# python pose_visualization.py --datadir ./data/any_folder_demo/llff_main_computers02 --logsdir ./logs/any_folder/llff_main_computers02/llff_main_computers02_01
+# python pose_visualization.py --datadir ./data/arkit/llff_main_computers --logsdir ./logs/arkit/llff_main_computers/llff_main_computers_02
+
+# python pose_visualization.py --datadir ./data/any_folder_demo/llff_main_computers --logsdir ./logs/any_folder/llff_main_computers/llff_main_computers_02
+# python pose_visualization.py --logsdir ./logs/nerfmm/trex/lr_0.001_gpu0_seed_17_resize_4_Nsam_128_Ntr_img_-1_freq_10__220416_1604 --ref_pose=False
 def config_parser():
     import configargparse
     parser = configargparse.ArgumentParser()
 
     parser.add_argument("--datadir", type=str, default='./data/arkit/llff_main_computers02',
                         help='data directory')
-    parser.add_argument("--logsdir", type=str, default='./logs/arkit/llff_main_computers02/llff_main_computers02_02',
+    parser.add_argument("--logsdir", type=str, default='./logs/arkit/llff_main_computers02/llff_main_computers02_03',
                         help='logs name')
+    parser.add_argument('--ref_pose', type=bool, default=True, help='false : only 2d pose plot')
     return parser
 
 
@@ -176,12 +180,15 @@ def generate_videos_pose(args):
     N = 20
 
     #GT pose load
-    gt_pose_file = os.path.join(args.datadir, "transforms_train.txt")
-    gt_pose = load_pose(gt_pose_file)[:N]
+    args.ref_pose = True
+    print('##### ',args.ref_pose)
+    gt_pose = None
+    if args.ref_pose:
+        gt_pose_file = os.path.join(args.datadir, "transforms_train.txt")
+        gt_pose = load_pose(gt_pose_file)[:N]
+        gt_pose = torch.stack([parse_raw_camera(p) for p in gt_pose], dim=0) #[right,up,back] --> [right, forward, up]
 
-    gt_pose = torch.stack([parse_raw_camera(p) for p in gt_pose], dim=0) #[right,up,back] --> [right, forward, up]
-
-    img_path = os.path.join(args.logsdir, 'pose_history_image')
+    img_path = os.path.join(args.logsdir, 'pose_history_image_'+str(N))
     os.makedirs(img_path, exist_ok=True)
     pose_3d_imgs = []
     pose_2d_imgs = []
@@ -193,22 +200,23 @@ def generate_videos_pose(args):
         refine_pose = torch.from_numpy(refine_pose).float()
         refine_pose = torch.stack([parse_raw_camera(p) for p in refine_pose], dim=0)  # [right,up,back] --> [right, forward, up]
 
-        fig = plt.figure(figsize=(10,10))
-        plot_save_3d_poses(fig,refine_pose,pose_ref=gt_pose,path=img_path,ep=epoch_i)
-        plt.close()
+        if args.ref_pose:
+            fig = plt.figure(figsize=(10,10))
+            plot_save_3d_poses(fig,refine_pose,pose_ref=gt_pose,path=img_path,ep=epoch_i)
+            plt.close()
+            image_fname_3d = "{}/3d_{}.png".format(img_path, epoch_i)
+            image_3d = PIL.Image.fromarray(imageio.imread(image_fname_3d))
+            pose_3d_imgs.append(image_3d)
+
         fig = plt.figure(figsize=(16,18))
         plot_save_2d_poses(fig,refine_pose,pose_ref=gt_pose,path=img_path,ep=epoch_i)
         plt.close()
-
-        image_fname_3d = "{}/3d_{}.png".format(img_path,epoch_i)
-        image_3d = PIL.Image.fromarray(imageio.imread(image_fname_3d))
-        pose_3d_imgs.append(image_3d)
-
         image_fname_2d = "{}/2d_{}.png".format(img_path, epoch_i)
         image_2d = PIL.Image.fromarray(imageio.imread(image_fname_2d))
         pose_2d_imgs.append(image_2d)
 
-    imageio.mimwrite(os.path.join(img_path, 'pose_3d.gif'), pose_3d_imgs, fps=60)
+    if args.ref_pose:
+        imageio.mimwrite(os.path.join(img_path, 'pose_3d.gif'), pose_3d_imgs, fps=60)
     imageio.mimwrite(os.path.join(img_path, 'pose_2d.gif'), pose_2d_imgs, fps=60)
 
 

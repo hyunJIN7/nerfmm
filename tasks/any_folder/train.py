@@ -288,7 +288,7 @@ def main(args):
     shutil.copy('./models/poses.py', experiment_dir)
     shutil.copy('./tasks/any_folder/train.py', experiment_dir)
 
-    #TODO : pose_histroy 추가함
+    #TODO : pose_histroy 추가
     if args.store_pose_history:
         pose_history_dir = Path(os.path.join(experiment_dir, 'pose_history'))
         pose_history_dir.mkdir(parents=True, exist_ok=True)
