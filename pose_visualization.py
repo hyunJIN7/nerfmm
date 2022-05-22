@@ -16,10 +16,15 @@ import camera
 """
 nerf.py의 novel_pose plot 위한 코드 
 """
-# python pose_visualization.py --datadir ./data/arkit/llff_main_computers --logsdir ./logs/arkit/llff_main_computers/llff_main_computers_02
+# CUDA_VISIBLE_DEVICES=1
+# python pose_visualization.py --datadir ./data/arkit/llff_main_computers --logsdir ./logs/arkit/llff_main_computers/llff_main_computers_03
 
-# python pose_visualization.py --datadir ./data/any_folder_demo/llff_main_computers --logsdir ./logs/any_folder/llff_main_computers/llff_main_computers_02
+# python pose_visualization.py --datadir ./data/any_folder_demo/llff_main_computers --logsdir ./logs/any_folder/llff_main_computers/llff_main_computers_03
 # python pose_visualization.py --logsdir ./logs/nerfmm/trex/lr_0.001_gpu0_seed_17_resize_4_Nsam_128_Ntr_img_-1_freq_10__220416_1604 --ref_pose=False
+
+# python pose_visualization.py --datadir ./data/LLFF/trex --logsdir ./logs/nerfmm/trex/trex02
+# python pose_visualization.py --datadir ./data/LLFF/trex --logsdir ./logs/nerfmm/trex/trex_colmap02
+
 def config_parser():
     import configargparse
     parser = configargparse.ArgumentParser()
@@ -177,10 +182,10 @@ def generate_videos_pose(args):
     [right,up,back] --> [right, forward, up]
     """
     #일단 초반 N개만
-    N = 20
+    N = 30
 
     #GT pose load
-    args.ref_pose = True
+    args.ref_pose = False #transform.txt 있을 때만 true(ios_logger에서 얻은 데이터)
     print('##### ',args.ref_pose)
     gt_pose = None
     if args.ref_pose:
