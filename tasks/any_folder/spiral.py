@@ -120,10 +120,15 @@ def main(args):
     img_out_dir = Path(os.path.join(test_dir, 'img_out'))
     depth_out_dir = Path(os.path.join(test_dir, 'depth_out'))
     video_out_dir = Path(os.path.join(test_dir, 'video_out'))
+    test_view_out_dir = Path(os.path.join(test_dir, 'test_view'))
+    novel_view_out_dir = Path(os.path.join(test_dir, 'novel_view'))
     test_dir.mkdir(parents=True, exist_ok=True)
     img_out_dir.mkdir(parents=True, exist_ok=True)
     depth_out_dir.mkdir(parents=True, exist_ok=True)
     video_out_dir.mkdir(parents=True, exist_ok=True)
+    test_view_out_dir.mkdir(parents=True, exist_ok=True)
+    novel_view_out_dir.mkdir(parents=True, exist_ok=True)
+
 
     '''Load scene meta'''
     scene_train = DataLoaderAnyFolder(base_dir=args.base_dir,
@@ -169,7 +174,7 @@ def main(args):
 
     learned_poses = torch.stack([pose_param_net(i) for i in range(scene_train.N_imgs)])
 
-    '''Generate camera traj'''
+    '''Generate camera traj  origin code'''
     # This spiral camera traj code is modified from https://github.com/kwea123/nerf_pl.
     # hardcoded, this is numerically close to the formula given in the original repo. Mathematically if near=1
     # and far=infinity, then this number will converge to 4. Borrowed from https://github.com/kwea123/nerf_pl
@@ -202,6 +207,35 @@ def main(args):
 
     imageio.mimwrite(os.path.join(video_out_dir, 'img.gif'), imgs, fps=30)
     imageio.mimwrite(os.path.join(video_out_dir, 'depth.gif'), depths, fps=30)
+
+
+    #TODO: 여기에서 novel_view,test_pose 로드해서 rendering 결과 내기
+    """test view"""
+    test_poses = scene_train.test_poses
+    fxfy = focal_net(0)
+    print('learned fx: {0:.2f}, fy: {1:.2f}'.format(fxfy[0].item(), fxfy[1].item()))
+    result = test_one_epoch(scene_train.H, scene_train.W, focal_net, test_poses, scene_train.near, scene_train.far,
+                            model, my_devices, args)
+    imgs = result['imgs']
+    depths = result['depths']
+
+    '''Write to folder'''
+    imgs = (imgs.cpu().numpy() * 255).astype(np.uint8)
+    depths = (depths.cpu().numpy() * 200).astype(np.uint8)  # far is 1.0 in NDC
+
+    for i in range(test_poses.shape[0]):
+        imageio.imwrite(os.path.join(test_view_out_dir, 'rgb_'+str(i) + '.png'), imgs[i])
+        imageio.imwrite(os.path.join(test_view_out_dir, 'depth_'+str(i) + '.png'), depths[i])
+
+    imageio.mimwrite(os.path.join(video_out_dir, 'test_img.mp4'), imgs, fps=30, quality=9)
+    imageio.mimwrite(os.path.join(video_out_dir, 'test_depth.mp4'), depths, fps=30, quality=9)
+
+    imageio.mimwrite(os.path.join(video_out_dir, 'test_img.gif'), imgs, fps=30)
+    imageio.mimwrite(os.path.join(video_out_dir, 'test_depth.gif'), depths, fps=30)
+
+    """novel _view"""
+    train_poses = scene_train.train_poses
+
 
     return
 

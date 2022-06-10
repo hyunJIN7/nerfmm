@@ -6,6 +6,7 @@ from tqdm import tqdm
 import imageio
 
 from dataloader.with_colmap import resize_imgs
+from utils.lie_group_helper import convert3x4_4x4
 
 
 def load_imgs(image_dir, num_img_to_load, start, end, skip, load_sorted, load_img):
@@ -53,9 +54,40 @@ def load_imgs(image_dir, num_img_to_load, start, end, skip, load_sorted, load_im
         'H': H,
         'W': W,
     }
-
     return results
 
+def read_file(pose_file): # timestamp filename r11 r12 r13 tx r21 r22 r23 y r31 r32 r33 z
+    assert os.path.isfile(pose_file), "pose info:{} not found".format(pose_file)
+    with open(pose_file, "r") as f:  # frame.txt 읽어서
+        cam_frame_lines = f.readlines()
+    c2ws = []  # r1x y z tx r2x y z ty r3x y z tz
+    for line in cam_frame_lines:
+        line_data_list = line.split(' ')
+        if len(line_data_list) == 0:
+            continue
+        pose_raw = np.reshape(line_data_list[2:], (3, 4))
+        c2ws.append(pose_raw)
+    return c2ws
+
+def read_meta(in_dir):
+    #test pose
+    test_file = os.path.join(in_dir, 'transforms_test.txt')
+    test_poses = read_file(test_file)
+    test_poses = np.array(test_poses, dtype=float)  # (N_images, 3, 4)
+    test_poses = convert3x4_4x4(test_poses) #(N,4,4)
+
+    #train pose
+    train_file = os.path.join(in_dir, 'transforms_test.txt')
+    train_poses = read_file(train_file)
+    train_poses = np.array(train_poses, dtype=float)  # (N_images, 3, 4)
+    train_poses = convert3x4_4x4(train_poses)  # (N,4,4)
+
+    results = {
+        'test_poses': test_poses,
+        'train_poses': train_poses,
+    }
+
+    return results
 
 class DataLoaderAnyFolder:
     """
@@ -110,6 +142,16 @@ class DataLoaderAnyFolder:
 
         if self.load_img:
             self.imgs = resize_imgs(self.imgs, self.H, self.W)  # (N, H, W, 3) torch.float32
+
+        # test pose, train pose load
+        """Fort test_view & novel_view --> load train_pose for novel_view and test_pose"""
+        meta = read_meta(self.scene_dir)
+        self.test_poses = meta['test_poses']  #(N,4,4)
+        self.train_poses = meta['train_poses']
+
+        # convert np to torch.
+        self.test_poses = torch.from_numpy(self.test_poses).float()  # (N, 4, 4) torch.float32
+        self.train_poses = torch.from_numpy(self.train_poses).float()  # (N, 4, 4) torch.float32
 
 
 if __name__ == '__main__':
