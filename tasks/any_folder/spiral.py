@@ -8,6 +8,12 @@ import numpy as np
 from tqdm import tqdm
 import imageio
 
+import torchvision
+import torchvision.transforms.functional as torchvision_F
+# from models.base import *
+# from external.pohsun_ssim import pytorch_ssim
+import lpips
+
 sys.path.append(os.path.join(sys.path[0], '../..'))
 
 from dataloader.any_folder import DataLoaderAnyFolder
@@ -35,7 +41,7 @@ def parse_args():
     parser.add_argument('--learn_R', default=False, type=bool)
     parser.add_argument('--learn_t', default=False, type=bool)
 
-    parser.add_argument('--resize_ratio', type=int, default=4, help='lower the image resolution with this ratio')
+    parser.add_argument('--resize_ratio', type=int, default=4, help='lower the image resolution with this ratio') # origin 4
     parser.add_argument('--num_rows_eval_img', type=int, default=10, help='split a high res image to rows in eval')
     parser.add_argument('--hidden_dims', type=int, default=128, help='network hidden unit dimensions')
     parser.add_argument('--num_sample', type=int, default=128, help='number samples along a ray')
@@ -59,8 +65,8 @@ def parse_args():
     parser.add_argument('--spiral_mag_percent', type=float, default=50, help='for np.percentile')
     parser.add_argument('--spiral_axis_scale', type=float, default=[1.0, 1.0, 1.0], nargs=3,
                         help='applied on top of percentile, useful in zoom in motion')
-    parser.add_argument('--N_img_per_circle', type=int, default=60)
-    parser.add_argument('--N_circle_traj', type=int, default=2)
+    parser.add_argument('--N_img_per_circle', type=int, default=30) #60
+    parser.add_argument('--N_circle_traj', type=int, default=1) #2
 
     parser.add_argument('--ckpt_dir', type=str, default='')
     return parser.parse_args()
@@ -118,13 +124,13 @@ def main(args):
     '''Create Folders'''
     test_dir = Path(os.path.join(args.ckpt_dir, 'render_spiral'))
     img_out_dir = Path(os.path.join(test_dir, 'img_out'))
-    depth_out_dir = Path(os.path.join(test_dir, 'depth_out'))
+    # depth_out_dir = Path(os.path.join(test_dir, 'depth_out'))
     video_out_dir = Path(os.path.join(test_dir, 'video_out'))
     test_view_out_dir = Path(os.path.join(test_dir, 'test_view'))
     novel_view_out_dir = Path(os.path.join(test_dir, 'novel_view'))
     test_dir.mkdir(parents=True, exist_ok=True)
     img_out_dir.mkdir(parents=True, exist_ok=True)
-    depth_out_dir.mkdir(parents=True, exist_ok=True)
+    # depth_out_dir.mkdir(parents=True, exist_ok=True)
     video_out_dir.mkdir(parents=True, exist_ok=True)
     test_view_out_dir.mkdir(parents=True, exist_ok=True)
     novel_view_out_dir.mkdir(parents=True, exist_ok=True)
@@ -199,8 +205,8 @@ def main(args):
     depths = (depths.cpu().numpy() * 200).astype(np.uint8)  # far is 1.0 in NDC
 
     for i in range(c2ws.shape[0]):
-        imageio.imwrite(os.path.join(img_out_dir, str(i).zfill(4) + '.png'), imgs[i])
-        imageio.imwrite(os.path.join(depth_out_dir, str(i).zfill(4) + '.png'), depths[i])
+        imageio.imwrite(os.path.join(img_out_dir, 'rgb_'+str(i).zfill(4) + '.png'), imgs[i])
+        imageio.imwrite(os.path.join(img_out_dir, 'dpeht_'+str(i).zfill(4) + '.png'), depths[i])
 
     imageio.mimwrite(os.path.join(video_out_dir, 'img.mp4'), imgs, fps=30, quality=9)
     imageio.mimwrite(os.path.join(video_out_dir, 'depth.mp4'), depths, fps=30, quality=9)
@@ -233,8 +239,31 @@ def main(args):
     imageio.mimwrite(os.path.join(video_out_dir, 'test_img.gif'), imgs, fps=30)
     imageio.mimwrite(os.path.join(video_out_dir, 'test_depth.gif'), depths, fps=30)
 
+    """evaluate rendering result in test pose"""
+    # TEST GT image load
+    # res = []
+    # lpips_loss = lpips.LPIPS(net="alex")
+    # for i in range(test_poses.shape[0]):
+    #     psnr = -10 * MSE_loss(imgs[i], var.image).log10().item() #mabye rendering,true image
+    #     ssim = pytorch_ssim.ssim(imgs[i], var.image).item()
+    #     lpips = lpips_loss(imgs[i] * 2 - 1, var.image * 2 - 1).item()
+    #     res.append(edict(psnr=psnr, ssim=ssim, lpips=lpips))
+    #
+    #
+    # print("--------------------------")
+    # print("PSNR:  {:8.2f}".format(np.mean([r.psnr for r in res])))
+    # print("SSIM:  {:8.2f}".format(np.mean([r.ssim for r in res])))
+    # print("LPIPS: {:8.2f}".format(np.mean([r.lpips for r in res])))
+    # print("--------------------------")
+    # # dump numbers to file
+    # quant_fname = "{}/quant.txt".format(opt.output_path)
+    # with open(quant_fname, "w") as file:
+    #     for i, r in enumerate(res):
+    #         file.write("{} {} {} {}\n".format(i, r.psnr, r.ssim, r.lpips))
+
+
     """novel _view"""
-    train_poses = scene_train.train_poses
+    # train_poses = scene_train.train_poses
 
 
     return

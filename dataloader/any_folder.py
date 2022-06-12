@@ -145,6 +145,7 @@ class DataLoaderAnyFolder:
 
         # test pose, train pose load
         """Fort test_view & novel_view --> load train_pose for novel_view and test_pose"""
+        self.scene_dir = os.path.join(self.base_dir, self.scene_name)
         meta = read_meta(self.scene_dir)
         self.test_poses = meta['test_poses']  #(N,4,4)
         self.train_poses = meta['train_poses']
