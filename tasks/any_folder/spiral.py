@@ -180,39 +180,39 @@ def main(args):
 
     learned_poses = torch.stack([pose_param_net(i) for i in range(scene_train.N_imgs)])
 
-    # '''Generate camera traj  origin code'''
-    # # This spiral camera traj code is modified from https://github.com/kwea123/nerf_pl.
-    # # hardcoded, this is numerically close to the formula given in the original repo. Mathematically if near=1
-    # # and far=infinity, then this number will converge to 4. Borrowed from https://github.com/kwea123/nerf_pl
-    # N_novel_imgs = args.N_img_per_circle * args.N_circle_traj
-    # focus_depth = 3.5
-    # radii = np.percentile(np.abs(learned_poses.cpu().numpy()[:, :3, 3]), args.spiral_mag_percent, axis=0)  # (3,)
-    # radii *= np.array(args.spiral_axis_scale)
-    # c2ws = create_spiral_poses(radii, focus_depth, n_circle=args.N_circle_traj, n_poses=N_novel_imgs)
-    # c2ws = torch.from_numpy(c2ws).float()  # (N, 3, 4)
-    # c2ws = convert3x4_4x4(c2ws)  # (N, 4, 4)
-    #
-    # '''Render'''
-    # fxfy = focal_net(0)
-    # print('learned fx: {0:.2f}, fy: {1:.2f}'.format(fxfy[0].item(), fxfy[1].item()))
-    # result = test_one_epoch(scene_train.H, scene_train.W, focal_net, c2ws, scene_train.near, scene_train.far,
-    #                         model, my_devices, args)
-    # imgs = result['imgs']
-    # depths = result['depths']
-    #
-    # '''Write to folder'''
-    # imgs = (imgs.cpu().numpy() * 255).astype(np.uint8)
-    # depths = (depths.cpu().numpy() * 200).astype(np.uint8)  # far is 1.0 in NDC
-    #
-    # for i in range(c2ws.shape[0]):
-    #     imageio.imwrite(os.path.join(img_out_dir, 'rgb_'+str(i).zfill(4) + '.png'), imgs[i])
-    #     imageio.imwrite(os.path.join(img_out_dir, 'dpeht_'+str(i).zfill(4) + '.png'), depths[i])
-    #
-    # imageio.mimwrite(os.path.join(video_out_dir, 'img.mp4'), imgs, fps=30, quality=9)
-    # imageio.mimwrite(os.path.join(video_out_dir, 'depth.mp4'), depths, fps=30, quality=9)
-    #
-    # imageio.mimwrite(os.path.join(video_out_dir, 'img.gif'), imgs, fps=30)
-    # imageio.mimwrite(os.path.join(video_out_dir, 'depth.gif'), depths, fps=30)
+    '''Generate camera traj  origin code'''
+    # This spiral camera traj code is modified from https://github.com/kwea123/nerf_pl.
+    # hardcoded, this is numerically close to the formula given in the original repo. Mathematically if near=1
+    # and far=infinity, then this number will converge to 4. Borrowed from https://github.com/kwea123/nerf_pl
+    N_novel_imgs = args.N_img_per_circle * args.N_circle_traj
+    focus_depth = 3.5
+    radii = np.percentile(np.abs(learned_poses.cpu().numpy()[:, :3, 3]), args.spiral_mag_percent, axis=0)  # (3,)
+    radii *= np.array(args.spiral_axis_scale)
+    c2ws = create_spiral_poses(radii, focus_depth, n_circle=args.N_circle_traj, n_poses=N_novel_imgs)
+    c2ws = torch.from_numpy(c2ws).float()  # (N, 3, 4)
+    c2ws = convert3x4_4x4(c2ws)  # (N, 4, 4)
+
+    '''Render'''
+    fxfy = focal_net(0)
+    print('learned fx: {0:.2f}, fy: {1:.2f}'.format(fxfy[0].item(), fxfy[1].item()))
+    result = test_one_epoch(scene_train.H, scene_train.W, focal_net, c2ws, scene_train.near, scene_train.far,
+                            model, my_devices, args)
+    imgs = result['imgs']
+    depths = result['depths']
+
+    '''Write to folder'''
+    imgs = (imgs.cpu().numpy() * 255).astype(np.uint8)
+    depths = (depths.cpu().numpy() * 200).astype(np.uint8)  # far is 1.0 in NDC
+
+    for i in range(c2ws.shape[0]):
+        imageio.imwrite(os.path.join(img_out_dir, 'rgb_'+str(i).zfill(4) + '.png'), imgs[i])
+        imageio.imwrite(os.path.join(img_out_dir, 'dpeht_'+str(i).zfill(4) + '.png'), depths[i])
+
+    imageio.mimwrite(os.path.join(video_out_dir, 'img.mp4'), imgs, fps=30, quality=9)
+    imageio.mimwrite(os.path.join(video_out_dir, 'depth.mp4'), depths, fps=30, quality=9)
+
+    imageio.mimwrite(os.path.join(video_out_dir, 'img.gif'), imgs, fps=30)
+    imageio.mimwrite(os.path.join(video_out_dir, 'depth.gif'), depths, fps=30)
 
 
     #TODO: 여기에서 novel_view,test_pose 로드해서 rendering 결과 내기
