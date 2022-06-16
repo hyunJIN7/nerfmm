@@ -7,12 +7,7 @@ import torch
 import numpy as np
 from tqdm import tqdm
 import imageio
-
-import torchvision
-import torchvision.transforms.functional as torchvision_F
-# from models.base import *
-# from external.pohsun_ssim import pytorch_ssim
-import lpips
+import PIL
 
 sys.path.append(os.path.join(sys.path[0], '../..'))
 
@@ -26,6 +21,11 @@ from tasks.any_folder.train import model_render_image
 from models.intrinsics import LearnFocal
 from models.poses import LearnPose
 
+from models.base import *
+import torchvision
+import torchvision.transforms.functional as torchvision_F
+from external.pohsun_ssim import pytorch_ssim
+import lpips
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -65,7 +65,7 @@ def parse_args():
     parser.add_argument('--spiral_mag_percent', type=float, default=50, help='for np.percentile')
     parser.add_argument('--spiral_axis_scale', type=float, default=[1.0, 1.0, 1.0], nargs=3,
                         help='applied on top of percentile, useful in zoom in motion')
-    parser.add_argument('--N_img_per_circle', type=int, default=30) #60
+    parser.add_argument('--N_img_per_circle', type=int, default=10) #60
     parser.add_argument('--N_circle_traj', type=int, default=1) #2
 
     parser.add_argument('--ckpt_dir', type=str, default='')
@@ -133,7 +133,7 @@ def main(args):
     # depth_out_dir.mkdir(parents=True, exist_ok=True)
     video_out_dir.mkdir(parents=True, exist_ok=True)
     test_view_out_dir.mkdir(parents=True, exist_ok=True)
-    novel_view_out_dir.mkdir(parents=True, exist_ok=True)
+    # novel_view_out_dir.mkdir(parents=True, exist_ok=True)
 
 
     '''Load scene meta'''
@@ -180,46 +180,46 @@ def main(args):
 
     learned_poses = torch.stack([pose_param_net(i) for i in range(scene_train.N_imgs)])
 
-    '''Generate camera traj  origin code'''
-    # This spiral camera traj code is modified from https://github.com/kwea123/nerf_pl.
-    # hardcoded, this is numerically close to the formula given in the original repo. Mathematically if near=1
-    # and far=infinity, then this number will converge to 4. Borrowed from https://github.com/kwea123/nerf_pl
-    N_novel_imgs = args.N_img_per_circle * args.N_circle_traj
-    focus_depth = 3.5
-    radii = np.percentile(np.abs(learned_poses.cpu().numpy()[:, :3, 3]), args.spiral_mag_percent, axis=0)  # (3,)
-    radii *= np.array(args.spiral_axis_scale)
-    c2ws = create_spiral_poses(radii, focus_depth, n_circle=args.N_circle_traj, n_poses=N_novel_imgs)
-    c2ws = torch.from_numpy(c2ws).float()  # (N, 3, 4)
-    c2ws = convert3x4_4x4(c2ws)  # (N, 4, 4)
-
-    '''Render'''
-    fxfy = focal_net(0)
-    print('learned fx: {0:.2f}, fy: {1:.2f}'.format(fxfy[0].item(), fxfy[1].item()))
-    result = test_one_epoch(scene_train.H, scene_train.W, focal_net, c2ws, scene_train.near, scene_train.far,
-                            model, my_devices, args)
-    imgs = result['imgs']
-    depths = result['depths']
-
-    '''Write to folder'''
-    imgs = (imgs.cpu().numpy() * 255).astype(np.uint8)
-    depths = (depths.cpu().numpy() * 200).astype(np.uint8)  # far is 1.0 in NDC
-
-    for i in range(c2ws.shape[0]):
-        imageio.imwrite(os.path.join(img_out_dir, 'rgb_'+str(i).zfill(4) + '.png'), imgs[i])
-        imageio.imwrite(os.path.join(img_out_dir, 'dpeht_'+str(i).zfill(4) + '.png'), depths[i])
-
-    imageio.mimwrite(os.path.join(video_out_dir, 'img.mp4'), imgs, fps=30, quality=9)
-    imageio.mimwrite(os.path.join(video_out_dir, 'depth.mp4'), depths, fps=30, quality=9)
-
-    imageio.mimwrite(os.path.join(video_out_dir, 'img.gif'), imgs, fps=30)
-    imageio.mimwrite(os.path.join(video_out_dir, 'depth.gif'), depths, fps=30)
+    # '''Generate camera traj  origin code'''
+    # # This spiral camera traj code is modified from https://github.com/kwea123/nerf_pl.
+    # # hardcoded, this is numerically close to the formula given in the original repo. Mathematically if near=1
+    # # and far=infinity, then this number will converge to 4. Borrowed from https://github.com/kwea123/nerf_pl
+    # N_novel_imgs = args.N_img_per_circle * args.N_circle_traj
+    # focus_depth = 3.5
+    # radii = np.percentile(np.abs(learned_poses.cpu().numpy()[:, :3, 3]), args.spiral_mag_percent, axis=0)  # (3,)
+    # radii *= np.array(args.spiral_axis_scale)
+    # c2ws = create_spiral_poses(radii, focus_depth, n_circle=args.N_circle_traj, n_poses=N_novel_imgs)
+    # c2ws = torch.from_numpy(c2ws).float()  # (N, 3, 4)
+    # c2ws = convert3x4_4x4(c2ws)  # (N, 4, 4)
+    #
+    # '''Render'''
+    # fxfy = focal_net(0)
+    # print('learned fx: {0:.2f}, fy: {1:.2f}'.format(fxfy[0].item(), fxfy[1].item()))
+    # result = test_one_epoch(scene_train.H, scene_train.W, focal_net, c2ws, scene_train.near, scene_train.far,
+    #                         model, my_devices, args)
+    # imgs = result['imgs']
+    # depths = result['depths']
+    #
+    # '''Write to folder'''
+    # imgs = (imgs.cpu().numpy() * 255).astype(np.uint8)
+    # depths = (depths.cpu().numpy() * 200).astype(np.uint8)  # far is 1.0 in NDC
+    #
+    # for i in range(c2ws.shape[0]):
+    #     imageio.imwrite(os.path.join(img_out_dir, 'rgb_'+str(i).zfill(4) + '.png'), imgs[i])
+    #     imageio.imwrite(os.path.join(img_out_dir, 'dpeht_'+str(i).zfill(4) + '.png'), depths[i])
+    #
+    # imageio.mimwrite(os.path.join(video_out_dir, 'img.mp4'), imgs, fps=30, quality=9)
+    # imageio.mimwrite(os.path.join(video_out_dir, 'depth.mp4'), depths, fps=30, quality=9)
+    #
+    # imageio.mimwrite(os.path.join(video_out_dir, 'img.gif'), imgs, fps=30)
+    # imageio.mimwrite(os.path.join(video_out_dir, 'depth.gif'), depths, fps=30)
 
 
     #TODO: 여기에서 novel_view,test_pose 로드해서 rendering 결과 내기
     """test view"""
     test_poses = scene_train.test_poses
     fxfy = focal_net(0)
-    print('learned fx: {0:.2f}, fy: {1:.2f}'.format(fxfy[0].item(), fxfy[1].item()))
+    print('#### test pose #####  learned fx: {0:.2f}, fy: {1:.2f}'.format(fxfy[0].item(), fxfy[1].item()))
     result = test_one_epoch(scene_train.H, scene_train.W, focal_net, test_poses, scene_train.near, scene_train.far,
                             model, my_devices, args)
     imgs = result['imgs']
@@ -240,31 +240,65 @@ def main(args):
     imageio.mimwrite(os.path.join(video_out_dir, 'test_depth.gif'), depths, fps=30)
 
     """evaluate rendering result in test pose"""
-    # TEST GT image load
-    # res = []
+    # Test GT image load
+    test_imgs_dir = os.path.join(args.base_dir, args.scene_name, 'test')
+    files = sorted(os.listdir(test_imgs_dir))
+    test_gt_img = []
+    for file in files:
+        image_name = os.path.join(test_imgs_dir,file)
+        # test_gt_img.append(torch.from_numpy(imageio.imread(image_name)))
+        # test_gt_img.append(torch.Tensor.float(torch.from_numpy(imageio.imread(image_name))))
+        test_gt_img.append(torch.from_numpy(imageio.imread(image_name)).float())
+
+
+
+    # TEST GT evaluate
+
+    #immg torch
+    res = []
     # lpips_loss = lpips.LPIPS(net="alex")
-    # for i in range(test_poses.shape[0]):
-    #     psnr = -10 * MSE_loss(imgs[i], var.image).log10().item() #mabye rendering,true image
-    #     ssim = pytorch_ssim.ssim(imgs[i], var.image).item()
-    #     lpips = lpips_loss(imgs[i] * 2 - 1, var.image * 2 - 1).item()
-    #     res.append(edict(psnr=psnr, ssim=ssim, lpips=lpips))
-    #
-    #
-    # print("--------------------------")
-    # print("PSNR:  {:8.2f}".format(np.mean([r.psnr for r in res])))
-    # print("SSIM:  {:8.2f}".format(np.mean([r.ssim for r in res])))
+    print('img size ', torch.from_numpy(imgs[0]).float().size())
+    h,w,_ = torch.from_numpy(imgs[0]).float().size() #h,w,3
+
+    print('test img size ', test_gt_img[0].float().size())
+
+    for i in range(test_poses.shape[0]):
+        #axis??
+        img = imgs[i] / (imgs[i].max() / 255.0)
+        img = torch.from_numpy(img).float().view(-1, h, w, 3).permute(0, 3, 1, 2)# [B,3,H,W]
+
+        gt_img = test_gt_img[i] / (test_gt_img[i].max() / 255.0)
+        gt_img = gt_img.view(-1, h, w, 3).permute(0, 3, 1, 2) # [B,3,H,W]
+
+
+        # img = torch.from_numpy(imgs[i]).float().view(-1, h, w, 3).permute(0, 3, 1, 2)# [B,3,H,W]
+        # gt_img = test_gt_img[i].view(-1, h, w, 3).permute(0, 3, 1, 2) # [B,3,H,W]
+        print('rgb ', img)
+        print('gt ', gt_img)
+        psnr = -10 * MSE_loss( img ,gt_img).log10().item() #mabye rendering,true image
+        ssim = pytorch_ssim.ssim(img, gt_img).item()
+
+        # lpips = lpips_loss(img* 2 - 1, test_gt_img[i] * 2 - 1).item()
+        # res.append(edict(psnr=psnr, ssim=ssim, lpips=lpips))
+        res.append(edict(psnr=psnr, ssim=ssim))
+        break
+
+    print("--------------------------")
+    print("PSNR:  {:8.2f}".format(np.mean([r.psnr for r in res])))
+    print("SSIM:  {:8.2f}".format(np.mean([r.ssim for r in res])))
     # print("LPIPS: {:8.2f}".format(np.mean([r.lpips for r in res])))
-    # print("--------------------------")
-    # # dump numbers to file
-    # quant_fname = "{}/quant.txt".format(opt.output_path)
-    # with open(quant_fname, "w") as file:
-    #     for i, r in enumerate(res):
-    #         file.write("{} {} {} {}\n".format(i, r.psnr, r.ssim, r.lpips))
+    print("--------------------------")
+    # dump numbers to file
+    quant_fname = "{}/quant.txt".format(args.ckpt_dir)
+    with open(quant_fname, "w") as file:
+        for i, r in enumerate(res):
+            # file.write("{} {} {} {}\n".format(i, r.psnr, r.ssim, r.lpips))
+            file.write("{} {} {}\n".format(i, r.psnr, r.ssim))
+
 
 
     """novel _view"""
     # train_poses = scene_train.train_poses
-
 
     return
 
