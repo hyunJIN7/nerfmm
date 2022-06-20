@@ -66,7 +66,7 @@ def rotation_distance(R1,R2,eps=1e-7):
     angle = ((trace-1)/2).clamp(-1+eps,1-eps).acos_() # numerical stability near -1/+1
     return angle
 
-def evaluate_camera_alignment(opt,pose_aligned,pose_GT):
+def evaluate_camera_alignment(pose_aligned,pose_GT):
     # measure errors in rotation and translation
     R_aligned,t_aligned = pose_aligned.split([3,1],dim=-1) #TODO:shape
     R_GT,t_GT = pose_GT.split([3,1],dim=-1)
@@ -77,16 +77,16 @@ def evaluate_camera_alignment(opt,pose_aligned,pose_GT):
 
 
 
-def prealign_cameras(self,opt,pose,pose_GT):
+def prealign_cameras(pose,pose_GT):
     # compute 3D similarity transform via Procrustes analysis
-    center = torch.zeros(1,1,3,device=opt.device)
+    center = torch.zeros(1,1,3) #,device=opt.device
     center_pred = camera.cam2world(center,pose)[:,0] # [N,3]
     center_GT = camera.cam2world(center,pose_GT)[:,0] # [N,3]
     try:
         sim3 = camera.procrustes_analysis(center_GT,center_pred)
     except:
         print("warning: SVD did not converge...")
-        sim3 = edict(t0=0,t1=0,s0=1,s1=1,R=torch.eye(3,device=opt.device))
+        sim3 = edict(t0=0,t1=0,s0=1,s1=1,R=torch.eye(3)) #,device=opt.device
     # align the camera poses
     center_aligned = (center_pred-sim3.t1)/sim3.s1@sim3.R.t()*sim3.s0+sim3.t0
     R_aligned = pose[...,:3]@sim3.R.t()
