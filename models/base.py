@@ -9,6 +9,7 @@ from math import log10, sqrt
 import cv2
 import numpy as np
 import lpips
+from utils import camera
 
 
 from easydict import EasyDict as edict
@@ -58,29 +59,37 @@ def SSIM(img1, img2):
                                                             (sigma1_sq + sigma2_sq + C2))
     return ssim_map.mean()
 
+def rotation_distance(R1,R2,eps=1e-7):
+    # http://www.boris-belousov.net/2016/12/01/quat-dist/
+    R_diff = R1@R2.transpose(-2,-1)
+    trace = R_diff[...,0,0]+R_diff[...,1,1]+R_diff[...,2,2]
+    angle = ((trace-1)/2).clamp(-1+eps,1-eps).acos_() # numerical stability near -1/+1
+    return angle
 
-# def calculate_ssim(img1, img2):
-#     '''calculate SSIM
-#     the same outputs as MATLAB's
-#     img1, img2: [0, 255]
-#     '''
-#     if not img1.shape == img2.shape:
-#         raise ValueError('Input images must have the same dimensions.')
-#     if img1.ndim == 2:
-#         return ssim(img1, img2)
-#     elif img1.ndim == 3:
-#         if img1.shape[2] == 3:
-#             ssims = []
-#             for i in range(3):
-#                 ssims.append(ssim(img1, img2))
-#             return np.array(ssims).mean()
-#         elif img1.shape[2] == 1:
-#             return ssim(np.squeeze(img1), np.squeeze(img2))
-#     else:
-#         raise ValueError('Wrong input image dimensions.')
+def evaluate_camera_alignment(opt,pose_aligned,pose_GT):
+    # measure errors in rotation and translation
+    R_aligned,t_aligned = pose_aligned.split([3,1],dim=-1) #TODO:shape
+    R_GT,t_GT = pose_GT.split([3,1],dim=-1)
+    R_error = rotation_distance(R_aligned,R_GT)
+    t_error = (t_aligned-t_GT)[...,0].norm(dim=-1)
+    error = edict(R=R_error,t=t_error)
+    return error
 
 
-def LPIPS(original,compressed):
-    lpips_loss = lpips.LPIPS(net="alex")
-    lpips = lpips_loss(compressed * 2 - 1, original * 2 - 1).item()
-    print("lpips: {}".format(lpips))
+
+def prealign_cameras(self,opt,pose,pose_GT):
+    # compute 3D similarity transform via Procrustes analysis
+    center = torch.zeros(1,1,3,device=opt.device)
+    center_pred = camera.cam2world(center,pose)[:,0] # [N,3]
+    center_GT = camera.cam2world(center,pose_GT)[:,0] # [N,3]
+    try:
+        sim3 = camera.procrustes_analysis(center_GT,center_pred)
+    except:
+        print("warning: SVD did not converge...")
+        sim3 = edict(t0=0,t1=0,s0=1,s1=1,R=torch.eye(3,device=opt.device))
+    # align the camera poses
+    center_aligned = (center_pred-sim3.t1)/sim3.s1@sim3.R.t()*sim3.s0+sim3.t0
+    R_aligned = pose[...,:3]@sim3.R.t()
+    t_aligned = (-R_aligned@center_aligned[...,None])[...,0]
+    pose_aligned = camera.pose(R=R_aligned,t=t_aligned)
+    return pose_aligned,sim3

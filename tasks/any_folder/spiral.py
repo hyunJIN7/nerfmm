@@ -186,8 +186,43 @@ def main(args):
     pose_param_net = load_ckpt_to_net(os.path.join(args.ckpt_dir, 'latest_pose.pth'), pose_param_net, map_location=my_devices)
 
     learned_poses = torch.stack([pose_param_net(i) for i in range(scene_train.N_imgs)])
+    # torch.Size([136, 4, 4])
 
-    # '''Generate camera traj  origin code'''
+    pose_GT = []
+    # Train pose load
+    #TODO : if optitrack , load optitrack
+    gt_pose_fname  = os.path.join(args.base_dir, args.scene_name, 'transforms_train.txt')
+    if os.path.isfile(gt_pose_fname): # gt file exist
+        with open(gt_pose_fname, "r") as f:  # frame.txt 읽어서
+            cam_frame_lines = f.readlines()
+        for line in cam_frame_lines:# time fname r1x y z tx r2x y z ty r3x y z tz
+            line_data_list = line.split(' ')
+            if len(line_data_list) == 0:
+                continue
+            pose_raw = np.reshape(line_data_list[2:], (3, 4))
+            pose_GT.append(pose_raw)
+        pose_GT = np.array(pose_GT, dtype=float)
+
+
+    # Pose error
+    print("learned_poses shape : ",learned_poses.shape)
+    # train 과정에서 optimize한 포즈 범위, GT pose
+    pose_aligned = prealign_cameras(learned_poses, pose_GT)
+    error = evaluate_camera_alignment(pose_aligned, pose_GT)
+    print("--------------------------")
+    print("rot:   {:8.3f}".format(np.rad2deg(error.R.mean().cpu())))
+    print("trans: {:10.5f}".format(error.t.mean()))
+    print("--------------------------")
+    # dump numbers
+    quant_fname = "{}/quant_pose.txt".format(args.ckpt_dir)
+    with open(quant_fname, "w") as file:
+        for i, (err_R, err_t) in enumerate(zip(error.R, error.t)):
+            file.write("{} {} {}\n".format(i, err_R.item(), err_t.item()))
+
+
+
+
+    # # '''Generate camera traj  origin code'''
     # # This spiral camera traj code is modified from https://github.com/kwea123/nerf_pl.
     # # hardcoded, this is numerically close to the formula given in the original repo. Mathematically if near=1
     # # and far=infinity, then this number will converge to 4. Borrowed from https://github.com/kwea123/nerf_pl
@@ -234,7 +269,8 @@ def main(args):
 
     '''Write to folder'''
     imgs = (imgs.cpu().numpy() * 255).astype(np.uint8)
-    depths = (depths.cpu().numpy() * 200).astype(np.uint8)  # far is 1.0 in NDC
+    depths = (254.0 - depths.cpu().numpy() * 200).astype(np.uint8)  # far is 1.0 in NDC #TODO: 254.0  255.0
+
 
     for i in range(test_poses.shape[0]):
         imageio.imwrite(os.path.join(test_view_out_dir, 'rgb_'+str(i) + '.png'), imgs[i])
@@ -256,7 +292,6 @@ def main(args):
         # test_gt_img.append(torch.from_numpy(imageio.imread(image_name)))
         test_gt_img.append(imageio.imread(image_name))
         # test_gt_img.append(torch.from_numpy(imageio.imread(image_name)).float())
-
 
 
     # TEST GT evaluate
