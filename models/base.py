@@ -79,16 +79,37 @@ def evaluate_camera_alignment(pose_aligned,pose_GT):
 
 def prealign_cameras(pose,pose_GT):
     # compute 3D similarity transform via Procrustes analysis
-    center = torch.zeros(1,1,3) #,device=opt.device
-    center_pred = camera.cam2world(center,pose)[:,0] # [N,3]
-    center_GT = camera.cam2world(center,pose_GT)[:,0] # [N,3]
+    device = 'cuda'
+    center = torch.zeros(1,1,3, device = device) #,device=opt.device
+    center_pred = camera.cam2world(center,pose)[:,0].cuda() # [N,3]
+    """
+     center must be torch.Size([1, 1, 3])
+     pose_GT must  torch.Size([136, 3, 4])
+    """
+    #TODO : pose_GT 전체 다 말고 한개씩 넣어서 돌아가도록 코드 수정
+    """
+        원본 데이터에서 center GT 쉐입 확인해서 각각 하나씩 넣은다음 어떻게 합칠지 확인하기
+    """
+    center_GT_list = []
+    N = pose_GT.shape[0]
+    for i in range(N):
+        p_GT = pose_GT[i]  # (1,3,4)
+        c_GT = camera.cam2world(center,p_GT)
+        print("@@ cGT shape ", c_GT.shape)
+        center_GT_list.append(torch.squeeze(c_GT))
+
+    # center_GT = camera.cam2world(center,pose_GT)[:,0] # [N,3]
+    center_GT = torch.stack([p for p in center_GT_list],dim=0)[:,0] # [N,3]
+    print("@@ center_GT shape ", center_GT.shape)
+
     try:
         sim3 = camera.procrustes_analysis(center_GT,center_pred)
     except:
         print("warning: SVD did not converge...")
-        sim3 = edict(t0=0,t1=0,s0=1,s1=1,R=torch.eye(3)) #,device=opt.device
+        sim3 = edict(t0=0,t1=0,s0=1,s1=1,R=torch.eye(3),device=device) #,device=opt.device
     # align the camera poses
     center_aligned = (center_pred-sim3.t1)/sim3.s1@sim3.R.t()*sim3.s0+sim3.t0
+
     R_aligned = pose[...,:3]@sim3.R.t()
     t_aligned = (-R_aligned@center_aligned[...,None])[...,0]
     pose_aligned = camera.pose(R=R_aligned,t=t_aligned)

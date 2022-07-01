@@ -35,7 +35,16 @@ class Pose():
 
     def invert(self,pose,use_inverse=False):
         # invert a camera pose
+        print("##### invert pose  : ",pose.shape)
         R,t = pose[...,:3],pose[...,3:]
+
+        print("##### R  : ", R.shape)
+
+        """
+            pose  must be torch.Size([1, 3, 4])
+            R  mut be   torch.Size([1, 3, 3])
+        """
+
         R_inv = R.inverse() if use_inverse else R.transpose(-1,-2)
         t_inv = (-R_inv@t)[...,0]
         pose_inv = self(R=R_inv,t=t_inv)
@@ -214,7 +223,10 @@ def img2cam(X,cam_intr):
     return X@cam_intr.inverse().transpose(-1,-2)
 def cam2world(X,pose): #x 가 center ?..
     X_hom = to_hom(X)
-    pose_inv = Pose().invert(pose)
+    print("###### X : ", X.shape)
+    print("###### X_hom : ", X_hom.shape)
+    print("###### pose : ", pose.shape)
+    pose_inv = Pose().invert(pose).cuda()
     return X_hom@pose_inv.transpose(-1,-2)
 
 def angle_to_rotation_matrix(a,axis):

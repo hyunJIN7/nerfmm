@@ -188,73 +188,73 @@ def main(args):
     learned_poses = torch.stack([pose_param_net(i) for i in range(scene_train.N_imgs)])
     # torch.Size([136, 4, 4])
 
-    pose_GT = []
-    # Train pose load
-    #TODO : if optitrack , load optitrack
-    gt_pose_fname  = os.path.join(args.base_dir, args.scene_name, 'transforms_train.txt')
-    if os.path.isfile(gt_pose_fname): # gt file exist
-        with open(gt_pose_fname, "r") as f:  # frame.txt 읽어서
-            cam_frame_lines = f.readlines()
-        for line in cam_frame_lines:# time fname r1x y z tx r2x y z ty r3x y z tz
-            line_data_list = line.split(' ')
-            if len(line_data_list) == 0:
-                continue
-            pose_raw = np.reshape(line_data_list[2:], (3, 4))
-            pose_GT.append(pose_raw)
-        pose_GT = np.array(pose_GT, dtype=float)
-
-
-    # Pose error
-    print("learned_poses shape : ",learned_poses.shape)
-    # train 과정에서 optimize한 포즈 범위, GT pose
-    pose_aligned = prealign_cameras(learned_poses, pose_GT)
-    error = evaluate_camera_alignment(pose_aligned, pose_GT)
-    print("--------------------------")
-    print("rot:   {:8.3f}".format(np.rad2deg(error.R.mean().cpu())))
-    print("trans: {:10.5f}".format(error.t.mean()))
-    print("--------------------------")
-    # dump numbers
-    quant_fname = "{}/quant_pose.txt".format(args.ckpt_dir)
-    with open(quant_fname, "w") as file:
-        for i, (err_R, err_t) in enumerate(zip(error.R, error.t)):
-            file.write("{} {} {}\n".format(i, err_R.item(), err_t.item()))
-
-
-
-
-    # # '''Generate camera traj  origin code'''
-    # # This spiral camera traj code is modified from https://github.com/kwea123/nerf_pl.
-    # # hardcoded, this is numerically close to the formula given in the original repo. Mathematically if near=1
-    # # and far=infinity, then this number will converge to 4. Borrowed from https://github.com/kwea123/nerf_pl
-    # N_novel_imgs = args.N_img_per_circle * args.N_circle_traj
-    # focus_depth = 3.5
-    # radii = np.percentile(np.abs(learned_poses.cpu().numpy()[:, :3, 3]), args.spiral_mag_percent, axis=0)  # (3,)
-    # radii *= np.array(args.spiral_axis_scale)
-    # c2ws = create_spiral_poses(radii, focus_depth, n_circle=args.N_circle_traj, n_poses=N_novel_imgs)
-    # c2ws = torch.from_numpy(c2ws).float()  # (N, 3, 4)
-    # c2ws = convert3x4_4x4(c2ws)  # (N, 4, 4)
+    # pose_GT = []
+    # # Train pose load
+    # #TODO : if optitrack , load optitrack
+    # gt_pose_fname  = os.path.join(args.base_dir, args.scene_name, 'transforms_train.txt')
+    # if os.path.isfile(gt_pose_fname): # gt file exist
+    #     with open(gt_pose_fname, "r") as f:  # frame.txt 읽어서
+    #         cam_frame_lines = f.readlines()
+    #     for line in cam_frame_lines:# time fname r1x y z tx r2x y z ty r3x y z tz
+    #         line_data_list = line.split(' ')
+    #         if len(line_data_list) == 0:
+    #             continue
+    #         pose_raw = np.reshape(line_data_list[2:], (3, 4))
+    #         pose_GT.append(pose_raw)
+    #     pose_GT = np.array(pose_GT, dtype=float)
     #
-    # '''Render'''
-    # fxfy = focal_net(0)
-    # print('learned fx: {0:.2f}, fy: {1:.2f}'.format(fxfy[0].item(), fxfy[1].item()))
-    # result = test_one_epoch(scene_train.H, scene_train.W, focal_net, c2ws, scene_train.near, scene_train.far,
-    #                         model, my_devices, args)
-    # imgs = result['imgs']
-    # depths = result['depths']
-    #
-    # '''Write to folder'''
-    # imgs = (imgs.cpu().numpy() * 255).astype(np.uint8)
-    # depths = (depths.cpu().numpy() * 200).astype(np.uint8)  # far is 1.0 in NDC
-    #
-    # for i in range(c2ws.shape[0]):
-    #     imageio.imwrite(os.path.join(img_out_dir, 'rgb_'+str(i).zfill(4) + '.png'), imgs[i])
-    #     imageio.imwrite(os.path.join(img_out_dir, 'dpeht_'+str(i).zfill(4) + '.png'), depths[i])
-    #
-    # imageio.mimwrite(os.path.join(video_out_dir, 'img.mp4'), imgs, fps=30, quality=9)
-    # imageio.mimwrite(os.path.join(video_out_dir, 'depth.mp4'), depths, fps=30, quality=9)
-    #
-    # imageio.mimwrite(os.path.join(video_out_dir, 'img.gif'), imgs, fps=30)
-    # imageio.mimwrite(os.path.join(video_out_dir, 'depth.gif'), depths, fps=30)
+    # learned_poses = learned_poses[:,:3,:] #[n,3,4] , torch
+    # # Pose error
+    # # train 과정에서 optimize한 포즈 범위, GT pose
+    # # learned_poses must be (n,3,4)
+    # pose_GT=torch.from_numpy(pose_GT)
+    # pose_aligned = prealign_cameras(learned_poses, pose_GT)
+    # error = evaluate_camera_alignment(pose_aligned, pose_GT)
+    # print("--------------------------")
+    # print("rot:   {:8.3f}".format(np.rad2deg(error.R.mean().cpu())))
+    # print("trans: {:10.5f}".format(error.t.mean()))
+    # print("--------------------------")
+    # # dump numbers
+    # quant_fname = "{}/quant_pose.txt".format(args.ckpt_dir)
+    # with open(quant_fname, "w") as file:
+    #     for i, (err_R, err_t) in enumerate(zip(error.R, error.t)):
+    #         file.write("{} {} {}\n".format(i, err_R.item(), err_t.item()))
+
+
+    '''Generate camera traj  origin code
+        This spiral camera traj code is modified from https://github.com/kwea123/nerf_pl.
+        hardcoded, this is numerically close to the formula given in the original repo. Mathematically if near=1
+        and far=infinity, then this number will converge to 4. Borrowed from https://github.com/kwea123/nerf_pl
+    '''
+    N_novel_imgs = args.N_img_per_circle * args.N_circle_traj
+    focus_depth = 3.5
+    radii = np.percentile(np.abs(learned_poses.cpu().numpy()[:, :3, 3]), args.spiral_mag_percent, axis=0)  # (3,)
+    radii *= np.array(args.spiral_axis_scale)
+    c2ws = create_spiral_poses(radii, focus_depth, n_circle=args.N_circle_traj, n_poses=N_novel_imgs)
+    c2ws = torch.from_numpy(c2ws).float()  # (N, 3, 4)
+    c2ws = convert3x4_4x4(c2ws)  # (N, 4, 4)
+
+    '''Render'''
+    fxfy = focal_net(0)
+    print('learned fx: {0:.2f}, fy: {1:.2f}'.format(fxfy[0].item(), fxfy[1].item()))
+    result = test_one_epoch(scene_train.H, scene_train.W, focal_net, c2ws, scene_train.near, scene_train.far,
+                            model, my_devices, args)
+    imgs = result['imgs']
+    depths = result['depths']
+
+    '''Write to folder'''
+    imgs = (imgs.cpu().numpy() * 255).astype(np.uint8)
+    depths = (depths.cpu().numpy() * 200).astype(np.uint8)  # far is 1.0 in NDC
+
+    for i in range(c2ws.shape[0]):
+        imageio.imwrite(os.path.join(img_out_dir, 'rgb_'+str(i).zfill(4) + '.png'), imgs[i])
+        imageio.imwrite(os.path.join(img_out_dir, 'dpeht_'+str(i).zfill(4) + '.png'), depths[i])
+
+    imageio.mimwrite(os.path.join(video_out_dir, 'img.mp4'), imgs, fps=30, quality=9)
+    imageio.mimwrite(os.path.join(video_out_dir, 'depth.mp4'), depths, fps=30, quality=9)
+
+    imageio.mimwrite(os.path.join(video_out_dir, 'img.gif'), imgs, fps=30)
+    imageio.mimwrite(os.path.join(video_out_dir, 'depth.gif'), depths, fps=30)
 
 
     #TODO: 여기에서 novel_view,test_pose 로드해서 rendering 결과 내기
