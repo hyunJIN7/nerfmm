@@ -72,7 +72,7 @@ def parse_args():
     parser.add_argument('--train_img_num', type=int, default=-1, help='num of images to train')
     parser.add_argument('--train_skip', type=int, default=1, help='skip every this number of imgs')
     parser.add_argument('--eval_img_num', type=int, default=-1, help='num of images to eval')
-    parser.add_argument('--eval_skip', type=int, default=1, help='skip every this number of imgs')
+    parser.add_argument('--eval_skip', type=int, default=1, help='skip every this number of imgs ')
 
     parser.add_argument('--rand_seed', type=int, default=17)
     parser.add_argument('--true_rand', type=bool, default=False)
