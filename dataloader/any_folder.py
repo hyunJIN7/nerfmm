@@ -47,8 +47,8 @@ def load_imgs(image_dir, num_img_to_load, start, end, skip, load_sorted, load_im
         img_list = torch.from_numpy(img_list).float() / 255  # (N, H, W, 3) torch.float32
         H, W = img_list.shape[1], img_list.shape[2]
     else:
-        tmp_img = PIL.Image.fromarray(imageio.imread(p))
-        # tmp_img = imageio.imread(img_paths[0])  # load one image to get H, W
+
+        tmp_img = imageio.imread(img_paths[0])  # load one image to get H, W
         H, W = tmp_img.shape[0], tmp_img.shape[1]
 
     results = {
