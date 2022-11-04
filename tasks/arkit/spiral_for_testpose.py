@@ -26,7 +26,7 @@ def parse_args():
     parser.add_argument('--gpu_id', default=0, type=int)
     parser.add_argument('--multi_gpu',  default=False, action='store_true')
     parser.add_argument('--base_dir', type=str, default='./data_dir/nerfmm_release_data',
-                        help='folder contains various scenes ')
+                        help='folder contains various scenes  ')
     parser.add_argument('--scene_name', type=str, default='LLFF/fern')
     parser.add_argument('--use_ndc', type=bool, default=True)
 

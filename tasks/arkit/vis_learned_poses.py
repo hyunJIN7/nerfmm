@@ -22,7 +22,7 @@ from models.poses import LearnPose
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--base_dir', type=str, default='./data_dir/nerfmm_release_data',
-                        help='folder contains various scenes ')
+                        help='folder contains various scenes  ')
     parser.add_argument('--scene_name', type=str, default='LLFF/fern')
 
     parser.add_argument('--learn_focal', default=False, type=bool)

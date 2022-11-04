@@ -349,7 +349,7 @@ def main(args):
                                        num_img_to_load=args.train_img_num,
                                        skip=args.train_skip,
                                        use_ndc=args.use_ndc)
-    ###
+
 
     # The ARKit eval poses are not in the same camera space that we learned so we can only check NVS
     # with a 4x4 identity pose.
