@@ -18,7 +18,7 @@ import PIL
 
 sys.path.append(os.path.join(sys.path[0], '../..'))
 
-from dataloader.any_folder import DataLoaderAnyFolder
+from dataloader.any_folder_for_arkit import DataLoaderAnyFolderforArkit
 from utils.training_utils import set_randomness, load_ckpt_to_net
 from utils.pose_utils import create_spiral_poses
 from utils.comp_ray_dir import comp_ray_dir_cam_fxfy
@@ -144,7 +144,7 @@ def main(args):
 
 
     '''Load scene meta'''
-    scene_train = DataLoaderAnyFolder(base_dir=args.base_dir,
+    scene_train = DataLoaderAnyFolderforArkit(base_dir=args.base_dir,
                                       scene_name=args.scene_name,
                                       res_ratio=args.resize_ratio,
                                       num_img_to_load=args.train_img_num,
@@ -284,7 +284,7 @@ def main(args):
 
     """evaluate rendering result in test pose"""
     # Test GT image load
-    test_imgs_dir = os.path.join(args.base_dir, args.scene_name, 'rgb_test')
+    test_imgs_dir = os.path.join(args.base_dir, args.scene_name, 'test')
     files = sorted(os.listdir(test_imgs_dir))
     test_gt_img = []
     for file in files:
