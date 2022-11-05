@@ -244,7 +244,7 @@ def main(args):
 
     '''Write to folder'''
     imgs = (imgs.cpu().numpy() * 255).astype(np.uint8)
-    depths = (depths.cpu().numpy() * 200).astype(np.uint8)  # far is 1.0 in NDC
+    depths = (255 - depths.cpu().numpy() * 255).astype(np.uint8)  # far is 1.0 in NDC
 
     for i in range(c2ws.shape[0]):
         imageio.imwrite(os.path.join(img_out_dir, 'rgb_'+str(i).zfill(4) + '.png'), imgs[i])
@@ -269,7 +269,10 @@ def main(args):
 
     '''Write to folder'''
     imgs = (imgs.cpu().numpy() * 255).astype(np.uint8)
-    depths = (254.0 - depths.cpu().numpy() * 200).astype(np.uint8)  # far is 1.0 in NDC #TODO: 254.0  255.0
+    depths = (255.0 - depths.cpu().numpy() * 255).astype(np.uint8)   # far is 1.0 in NDC
+    print("depth range !!!!!!!!! ")
+    print(np.max(depths))
+    print(np.min(depths))
 
 
     for i in range(test_poses.shape[0]):
